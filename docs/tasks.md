@@ -36,6 +36,12 @@
 - [x] Redesign visual completo ("Fila de Créditos Cracktro" — tema âmbar,
       sem cards/bordas, tipografia bitmap) e rename do produto pra **Sinal**
       (repositório GitHub continua `antijanja`) — ADR 018.
+- [x] Favicon no mesmo estilo do redesign (`src/app/icon.tsx` +
+      `apple-icon.tsx`, gerados em código com `next/og`).
+- [x] Corrigido bug de qualidade: quem assistia via compartilhamento de tela
+      recebia algo tipo 160p/360p mesmo com preset em 1080p — o encoder
+      derrubava resolução pra manter fps sob aperto de banda. Agora derruba
+      fps, mantém resolução (ADR 019).
 
 ## Próximos passos possíveis (não iniciados)
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o

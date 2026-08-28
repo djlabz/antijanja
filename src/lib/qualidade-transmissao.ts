@@ -43,6 +43,16 @@ export function construirConstraintsVideo(
  * Limita o bitrate de vídeo de uma conexão P2P onde EU sou quem manda a
  * tela (`RTCRtpSender`, não o lado que recebe — bitrate é decidido por
  * quem envia). `bitrateMbps: null` remove o limite.
+ *
+ * Também trava `degradationPreference: "maintain-resolution"` — sem isso,
+ * assim que o WebRTC estima que a rede não aguenta o bitrate escolhido
+ * (upload de casa mais fraco, rota via Render, etc.) o encoder decide
+ * sozinho **derrubar a resolução** pra manter os quadros por segundo, o
+ * que na prática aparecia como "a transmissão fica tipo 160p/360p" mesmo
+ * com o preset em 1080p. Preferimos o oposto pra compartilhamento de tela:
+ * texto/UI legível importa mais que fluidez perfeita, então quem cede sob
+ * aperto de banda é o fps, não a resolução (ver docs/decisions.md, ADR 019
+ * — revê o trade-off da ADR 011, que ia na direção contrária).
  */
 export async function aplicarLimiteBitrate(
   pc: RTCPeerConnection,
@@ -56,6 +66,7 @@ export async function aplicarLimiteBitrate(
     parametros.encodings = [{}];
   }
   parametros.encodings[0].maxBitrate = bitrateMbps ? bitrateMbps * 1_000_000 : undefined;
+  parametros.degradationPreference = "maintain-resolution";
 
   try {
     await sender.setParameters(parametros);

@@ -298,9 +298,14 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     const trilhaVideo = stream.getVideoTracks()[0];
     if (trilhaVideo) {
-      // Prioriza fluidez (fps estável) sobre nitidez por quadro — o pedido
-      // era "parar de travar", não 4K nítido parado no tempo.
-      trilhaVideo.contentHint = "motion";
+      // "detail", não "motion": pra compartilhamento de tela, texto/UI
+      // legível importa mais que fluidez perfeita — e `contentHint` também
+      // é o sinal que o navegador usa pra escolher o `degradationPreference`
+      // padrão (motion → prioriza fps, derrubando resolução sob aperto de
+      // banda; detail → o contrário). É reforçado explicitamente em
+      // `aplicarLimiteBitrate` (ver ADR 019); aqui é só pra não mandar dois
+      // sinais contraditórios pro encoder.
+      trilhaVideo.contentHint = "detail";
     }
 
     streamLocalRef.current = stream;
