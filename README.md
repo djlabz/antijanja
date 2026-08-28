@@ -1,36 +1,68 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Tela Junto
 
-## Getting Started
+Compartilhe sua tela com os amigos numa sala, sem cadastro — inspirado no
+[GoLive](https://golive.nemtudo.me), mas rodando de graça direto do seu
+computador (sem servidor pago, sem banco de dados). Veja `docs/decisions.md`
+pra entender as trocas feitas pra isso funcionar sem custo.
 
-First, run the development server:
+## Rodar só pra você (mesma rede)
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abra [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Jogar/assistir com os amigos (fora da sua rede)
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run share
+```
 
-## Learn More
+Isso sobe o servidor **e** abre um túnel grátis da Cloudflare
+(`cloudflared`, sem precisa de conta) ao mesmo tempo. Depois de alguns
+segundos aparece no terminal uma linha assim:
 
-To learn more about Next.js, take a look at the following resources:
+```
+your quick tunnel has been created! visit it at:
+https://algo-aleatorio-tipo-isso.trycloudflare.com
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Manda esse link pros amigos. Enquanto o comando estiver rodando no seu PC,
+a sala fica acessível pra quem tiver o link — feche o terminal (`Ctrl+C`)
+quando terminar a sessão.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+> A URL muda toda vez que você roda `npm run share` de novo. Isso é
+> proposital (ver ADR 005 em `docs/decisions.md`) — o objetivo era zero
+> configuração, não link fixo.
 
-## Deploy on Vercel
+## Como funciona (resumo)
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- Cada sala é só um código (tipo `wsrpx`) que quem quer que existam
+  simultaneamente compartilha entre si — não tem conta, não tem senha.
+- A tela sai direto do PC de quem compartilha pro PC de quem assiste
+  (WebRTC ponto a ponto) — o seu computador só serve de "central telefônica"
+  pra combinar quem fala com quem (Socket.IO), o vídeo em si não passa por
+  ele além do próprio compartilhamento.
+- Nada fica salvo: fechar o servidor apaga todas as salas.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+Detalhes técnicos e por quê de cada escolha: `docs/decisions.md`.
+Escopo da funcionalidade: `docs/features/000-sala-compartilhamento-tela.md`.
+
+## Comandos
+
+- `npm run dev` — sobe o servidor (Next.js + Socket.IO) só na sua rede local.
+- `npm run share` — sobe o servidor + túnel público pros amigos de fora.
+- `npm run lint` — checa o código.
+- `npm run build` / `npm run start` — build de produção.
+
+## Limitações conhecidas
+
+- Sem servidor TURN: em redes muito restritivas (algumas 4G/CGNAT), a
+  conexão direta entre dois participantes pode falhar (ADR 003).
+- Acima de ~6-8 pessoas assistindo a mesma tela, o upload de quem
+  compartilha vira o gargalo — não é feito pra transmissão em massa.
+- Sem lista de salas públicas, sem conta, sem histórico entre sessões —
+  de propósito, pra manter o projeto em zero custo e zero configuração
+  (escopo combinado no início do projeto, ver `docs/tasks.md`).

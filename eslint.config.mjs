@@ -12,6 +12,14 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Scripts de ferramentas de IA (skills, agentes) vendorizadas por agente
+    // — não é código do app, não é nosso pra lintar.
+    ".agent/**",
+    ".agents/**",
+    ".claude/**",
+    ".codex/**",
+    ".gemini/**",
+    ".opencode/**",
   ]),
 ]);
 

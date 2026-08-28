@@ -39,3 +39,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Skills/config vendorizados de ferramentas de IA instaladas localmente
+# (a mesma skill "impeccable" aparece duplicada em todas essas pastas) —
+# são artefato de máquina, não código do projeto. .claude/ fica de fora
+# dessa exclusão porque pode conter config específica deste projeto (ex:
+# launch.json); só a skill vendorizada é ignorada explicitamente abaixo.
+/.agent/
+/.agents/
+/.codex/
+/.gemini/
+/.opencode/
+/.claude/skills/
