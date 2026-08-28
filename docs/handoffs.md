@@ -126,3 +126,10 @@
   corrigido. Não testado (não dá pra automatizar): a qualidade de vídeo
   em si numa transmissão real — `getDisplayMedia` exige um seletor nativo
   do SO que não responde a automação.
+
+## 2026-08-27 - Hydration mismatch causado por extensão de navegador
+- Usuário reportou erro de "hydration mismatch" do React ao entrar pelo
+  link direto. Causa (visível no próprio stack trace do erro): a extensão
+  de navegador Monica injeta `monica-id`/`monica-version` no `<body>` antes
+  do React hidratar — não é bug do app (ver ADR 013). Corrigido com
+  `suppressHydrationWarning` em `<html>` e `<body>` (`src/app/layout.tsx`).

@@ -26,8 +26,16 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       // docs/decisions.md). A classe "dark" também liga as variantes com
       // mais contraste que os componentes Shadcn já trazem prontas.
       className={`dark ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      // Algumas extensões de navegador (ex: Monica, Grammarly) injetam
+      // atributos no <html>/<body> antes do React hidratar, gerando um
+      // aviso de "hydration mismatch" que não é bug do app — ver
+      // docs/decisions.md (ADR 013).
+      suppressHydrationWarning
     >
-      <body className="flex h-dvh flex-col overflow-y-auto bg-background text-foreground">
+      <body
+        className="flex h-dvh flex-col overflow-y-auto bg-background text-foreground"
+        suppressHydrationWarning
+      >
         <TooltipProvider delay={300}>{children}</TooltipProvider>
       </body>
     </html>
