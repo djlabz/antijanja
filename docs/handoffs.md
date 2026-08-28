@@ -62,3 +62,27 @@
 - `eslint.config.mjs` passou a ignorar `.agent(s)/`, `.claude/`, `.codex/`,
   `.gemini/`, `.opencode/` — diretórios de configuração de ferramentas de IA
   que passaram a existir na raiz do projeto e não são código do app.
+- Primeiro commit do projeto e `git remote add origin` pro repositório do
+  usuário no GitHub (`.agent`, `.agents`, `.codex`, `.gemini`, `.opencode` —
+  todos vazios ou cópias duplicadas da mesma skill `impeccable` que já
+  existia em `.claude/` — ficaram de fora do commit via `.gitignore`, pra
+  não versionar ~370 mil linhas de script vendorizado de ferramenta local).
+
+## 2026-08-27 - Limpeza de skills duplicadas, Docker, push
+- A pedido do usuário: apagadas as pastas `.agent/`, `.agents/`, `.codex/`,
+  `.gemini/`, `.opencode/` do disco (não só do git) — só sobrou `.claude/`,
+  que é a única realmente usada nesta sessão. As quatro primeiras já
+  estavam vazias; `.opencode/` tinha uma cópia idêntica da skill
+  `impeccable` que também existe em `.claude/skills/`.
+- `Dockerfile` + `docker-compose.yml` (ADR 010): `docker compose up` builda
+  a imagem e sobe dois serviços, `app` (Next + Socket.IO, produção) e
+  `tunnel` (`cloudflare/cloudflared` oficial, mesmo túnel gratuito do
+  `npm run share`). Testado de ponta a ponta neste ambiente: build, subida
+  dos dois containers, entrada numa sala pelo link público do túnel gerado
+  pelo Docker — tudo funcionando antes de derrubar o teste
+  (`docker compose down`).
+- `tsx` e `cross-env` movidos de `devDependencies` pra `dependencies` no
+  `package.json` — passaram a ser dependência de runtime de verdade
+  (`server.ts` roda via `tsx` também em `npm run start`/produção, não só em
+  dev), independente de Docker.
+- Commit e `git push -u origin main` feitos a pedido explícito do usuário.

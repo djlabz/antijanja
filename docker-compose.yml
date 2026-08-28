@@ -1,0 +1,28 @@
+services:
+  # O app em si — Next.js + Socket.IO (server.ts). Acessível em
+  # http://localhost:3000 pra quem estiver na mesma rede.
+  app:
+    build: .
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
+  # Túnel gratuito da Cloudflare (sem conta, sem cartão — "quick tunnel",
+  # ver docs/decisions.md ADR 005) pra quem estiver FORA da rede conseguir
+  # entrar. Fala com o serviço "app" pelo nome, dentro da rede do Compose —
+  # não precisa nem que a porta 3000 esteja publicada pro host.
+  #
+  # O link público aparece nos logs deste serviço, algo como:
+  #   https://palavras-aleatorias.trycloudflare.com
+  # Pra ver: `docker compose logs -f tunnel` (Ctrl+C só fecha o log, não o
+  # túnel). Muda toda vez que a stack sobe — é assim que o "quick tunnel"
+  # funciona, não precisa de configuração.
+  #
+  # Não quer expor pra internet, só usar na rede local? Rode só o app:
+  #   docker compose up app
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    command: tunnel --no-autoupdate --url http://app:3000
+    depends_on:
+      - app
+    restart: unless-stopped

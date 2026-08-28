@@ -13,7 +13,9 @@ quem hospeda a sessão. Sem servidor pago, sem banco de dados, sem contas.
 
 ## Como rodar
 
-- Instalar: `npm install`
+- Docker (recomendado pra quem só quer usar): `docker compose up` — sobe o
+  app + túnel público num comando só (ver `README.md`, ADR 010).
+- Instalar (sem Docker): `npm install`
 - Dev (só você, na sua rede): `npm run dev`
 - Dev + link público pros amigos: `npm run share` (ver `README.md`)
 - Lint: `npm run lint` — sempre rode antes de finalizar tarefa

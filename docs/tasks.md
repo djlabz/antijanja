@@ -11,6 +11,8 @@
 - [x] Botão de tela cheia no vídeo de quem está compartilhando.
 - [x] Dica de como isolar o áudio do Discord (aba do navegador em vez de
       tela inteira) — ADR 008.
+- [x] `docker compose up` — app + túnel Cloudflare num comando só, pra quem
+      clonar o repositório sem precisar instalar Node (ADR 010).
 
 ## Próximos passos possíveis (não iniciados)
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o
