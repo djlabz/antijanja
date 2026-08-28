@@ -178,3 +178,26 @@
   título do vídeo apareceu), sincronizou pra quem entrou depois já vendo o
   vídeo carregado sem poder controlar (permissão "só eu"), e remover
   sincronizou pros dois lados.
+- Testei também a sincronia de play/pause de verdade (não só o carregamento
+  do vídeo): dei play numa aba, a outra começou a tocar ~1s depois; dei
+  pause, a outra pausou junto. Usei um hook de debug temporário
+  (`window.__ytDebug = playerRef.current`, removido antes de terminar —
+  `git status` limpo depois) pra conseguir ler o estado do player de dentro
+  do iframe do YouTube (cross-origin, não dá pra inspecionar de fora).
+
+## 2026-08-28 - Deploy no Render
+- Usuário perguntou se dava pra hospedar no Render de graça — já tinha
+  conta criada lá, só queria saber como fazer o deploy. Confirmei os
+  limites reais do plano free (via busca na documentação oficial do Render
+  e fontes de terceiros, não assumido): sem cartão de crédito, 750h
+  grátis/mês, dorme depois de 15min sem tráfego (cold start de 30-60s),
+  WebSocket funciona sem timeout fixo documentado. Isso é uma mudança de
+  arquitetura em relação ao objetivo original (rodar no próprio PC do
+  usuário) — documentado como trade-off explícito, não escondido (ADR 017).
+- Adicionado `render.yaml` (Blueprint do Render, `runtime: docker`, plano
+  `free`, aponta pro `Dockerfile` já existente — nenhuma mudança nele foi
+  necessária) e uma seção no README com o passo a passo do deploy pela UI
+  do Render (Blueprint → conectar repo → Apply). De propósito sem
+  `TUNNEL=cloudflare`: o Render já é público por conta própria, e o
+  diálogo "Compartilhar sala" já cai pra `window.location.origin` sozinho
+  quando não tem `linkPublico` de túnel.

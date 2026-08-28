@@ -60,6 +60,32 @@ Isso sobe o servidor **e** o mesmo túnel do Cloudflare junto, no mesmo
 processo — o link do "Compartilhar sala" já sai pronto, mesmo se você
 mesmo estiver em `localhost`.
 
+## Deploy no Render (grátis, sem depender do seu PC ligado)
+
+Alternativa ao Docker/`npm run share`: hospedar de graça no
+[Render](https://render.com), pra sala ficar disponível o tempo todo, sem
+precisar do seu computador ligado. Ainda é gratuito em dinheiro, mas é
+processamento de terceiro — não é mais "seu próprio PC" (ver ADR 017 em
+`docs/decisions.md`). Nada no código muda: o repositório já tem um
+`render.yaml`, o mesmo `Dockerfile` do Docker Compose funciona lá direto.
+
+1. Faça login em [render.com](https://render.com) (não pede cartão pro plano free).
+2. **New +** → **Blueprint**.
+3. Conecte sua conta do GitHub (se ainda não tiver conectado) e escolha o
+   repositório `djlabz/antijanja`.
+4. O Render lê o `render.yaml` sozinho e já mostra o serviço `tela-junto`
+   configurado (Docker, plano Free). Clique em **Apply**.
+5. Espera o primeiro build terminar (uns minutos) — o Render te dá uma URL
+   tipo `https://tela-junto-xxxx.onrender.com`. É só isso, já dá pra
+   compartilhar esse link com os amigos.
+
+Não precisa configurar nenhuma variável de ambiente a mais — não ligue
+`TUNNEL=cloudflare` aqui, o Render já é público por conta própria.
+
+> **Limitação do plano grátis**: o serviço "dorme" depois de 15 minutos sem
+> acesso, e o próximo clique demora uns 30–60s pra acordar ele (o resto do
+> tempo, funciona normal). Detalhes em `docs/decisions.md` (ADR 017).
+
 ## Como funciona (resumo)
 
 - Cada sala é só um código (tipo `wsrpx`) que quem quer que existam

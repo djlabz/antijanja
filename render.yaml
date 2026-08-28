@@ -1,0 +1,15 @@
+services:
+  - name: tela-junto
+    type: web
+    runtime: docker
+    plan: free
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Sem TUNNEL aqui de propósito: o Render já dá uma URL pública própria
+      # (https://tela-junto-xxxx.onrender.com), então o túnel do Cloudflare
+      # (ADR 011) não é necessário — ligar TUNNEL=cloudflare faria o
+      # container tentar abrir um túnel de dentro de um servidor que já é
+      # público, sem necessidade. Ver docs/decisions.md (ADR 017).

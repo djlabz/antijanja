@@ -31,6 +31,8 @@
 - [x] Corrigido bug crítico de condição de corrida entre duas instâncias do
       store de nome (uma por rota) que podia travar a entrada na sala pra
       sempre — nome agora é decidido só dentro da própria sala (ADR 016).
+- [x] `render.yaml` — deploy opcional no Render (grátis, sem depender do PC
+      do usuário ligado; troca "seu processamento" por "sempre disponível") — ADR 017.
 
 ## Próximos passos possíveis (não iniciados)
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o
