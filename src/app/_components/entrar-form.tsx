@@ -25,12 +25,12 @@ export function EntrarForm() {
       }}
     >
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="codigo" className="text-xs font-medium text-muted-foreground">
-          Código da sala <span className="opacity-70">(opcional)</span>
+        <label htmlFor="codigo" className="font-mono text-xs text-muted-foreground">
+          código&gt; <span className="opacity-70">(opcional)</span>
         </label>
         <Input
           id="codigo"
-          placeholder="Deixe em branco pra criar uma sala nova"
+          placeholder="deixe em branco pra criar uma sala nova"
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
           maxLength={20}

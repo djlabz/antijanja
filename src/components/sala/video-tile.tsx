@@ -47,7 +47,10 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
     <div
       ref={containerRef}
       className={cn(
-        "group relative overflow-hidden rounded-xl border border-border bg-black",
+        // Sem borda, sem canto arredondado: o plano da frente é o vídeo em
+        // si, não uma moldura ao redor dele (ver DESIGN.md). A separação do
+        // vazio ao redor vem só da própria imagem contra o preto puro.
+        "group relative overflow-hidden bg-black",
         emTelaCheia && "flex items-center justify-center",
         className
       )}
@@ -60,14 +63,16 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
         className={cn("h-full w-full object-contain", emTelaCheia && "h-auto max-h-full")}
       />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/70 to-transparent" />
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/80 to-transparent" />
 
-      <div className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full bg-black/50 py-1 pr-2.5 pl-1.5 backdrop-blur-sm">
+      {/* Legenda sem pílula/fundo — texto direto sobre o gradiente, como uma
+          linha de crédito de abertura (ver DESIGN.md, "Fila de Créditos"). */}
+      <div className="absolute top-2.5 left-3 flex items-center gap-2">
         <span className="relative flex size-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
           <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
         </span>
-        <span className="text-xs font-medium text-white">{nome}</span>
+        <span className="font-heading text-xs tracking-wide text-white">{nome}</span>
       </div>
 
       <Tooltip>
@@ -76,14 +81,14 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
             <button
               type="button"
               onClick={alternarTelaCheia}
-              className="absolute top-2 right-2 flex size-7 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70 focus-visible:outline-2 focus-visible:outline-ring"
+              className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
             />
           }
         >
           {emTelaCheia ? (
-            <Minimize className="size-3.5" />
+            <Minimize className="size-4" />
           ) : (
-            <Maximize className="size-3.5" />
+            <Maximize className="size-4" />
           )}
           <span className="sr-only">
             {emTelaCheia ? "Sair da tela cheia" : "Tela cheia"}

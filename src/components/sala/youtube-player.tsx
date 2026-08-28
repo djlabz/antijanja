@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState } from "react";
 import { SquarePlay, X } from "lucide-react";
-import { Button } from "@/components/ui/button";
 import type { ComandoVideo, ParticipantId } from "@/lib/socket-events";
 
 interface YoutubePlayerProps {
@@ -148,28 +147,26 @@ export function YoutubePlayer({
   }, [souControlador, pronto, onComando]);
 
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-border bg-black">
+    <div className="group relative overflow-hidden bg-black">
       <div ref={containerRef} className="h-full w-full" />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/70 to-transparent" />
-      <div className="absolute top-2 left-2 flex items-center gap-1.5 rounded-full bg-black/50 py-1 pr-2.5 pl-1.5 backdrop-blur-sm">
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/80 to-transparent" />
+      <div className="absolute top-2.5 left-3 flex items-center gap-1.5">
         <SquarePlay className="size-3.5 text-white" />
-        <span className="text-xs font-medium text-white">
+        <span className="font-heading text-xs tracking-wide text-white">
           {ehPlaylist ? "Playlist do YouTube" : "YouTube"}
         </span>
       </div>
 
       {onRemover && (
-        <Button
+        <button
           type="button"
-          size="icon-sm"
-          variant="outline"
           onClick={onRemover}
-          className="absolute top-2 right-2 bg-black/50 text-white hover:bg-black/70"
+          className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
           aria-label="Remover vídeo"
         >
-          <X className="size-3.5" />
-        </Button>
+          <X className="size-4" />
+        </button>
       )}
     </div>
   );

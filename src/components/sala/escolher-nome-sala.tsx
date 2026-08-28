@@ -23,15 +23,15 @@ export function EscolherNomeSala({ codigo, aoEscolherNome, aoEscolherConvidado }
   const [nome, setNome] = useState("");
 
   return (
-    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-16">
+    <main className="campo-poeira relative flex flex-1 flex-col items-center justify-center overflow-hidden px-6 py-16">
       <div
         aria-hidden
-        className="pointer-events-none absolute top-[-10%] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-primary/12 blur-[120px]"
+        className="pointer-events-none absolute top-[-10%] left-1/2 h-[32rem] w-[32rem] -translate-x-1/2 rounded-full bg-primary/10 blur-[120px]"
       />
 
       <div className="relative flex flex-col items-center gap-2 text-center">
-        <h1 className="text-2xl font-semibold tracking-tight">
-          Você foi convidado pra sala{" "}
+        <h1 className="font-heading text-xl tracking-wide text-dust-4">
+          VOCÊ FOI CONVIDADO PRA SALA{" "}
           <span className="font-mono text-primary">{codigo}</span>
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
@@ -40,15 +40,15 @@ export function EscolherNomeSala({ codigo, aoEscolherNome, aoEscolherConvidado }
       </div>
 
       <form
-        className="relative mt-8 flex w-full max-w-sm flex-col gap-3 rounded-2xl border border-border bg-card/60 p-6 shadow-2xl shadow-black/40 backdrop-blur-sm"
+        className="relative mt-10 flex w-full max-w-sm flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault();
           const limpo = nome.trim();
           if (limpo) aoEscolherNome(limpo);
         }}
       >
-        <label htmlFor="nome-convite" className="text-xs font-medium text-muted-foreground">
-          Seu nome
+        <label htmlFor="nome-convite" className="font-mono text-xs text-muted-foreground">
+          nome&gt;
         </label>
         <Input
           id="nome-convite"

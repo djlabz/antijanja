@@ -116,12 +116,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-center gap-2 border-b border-border px-3 py-2.5 sm:gap-3 sm:px-4">
-        <span className="hidden text-sm font-semibold tracking-tight sm:inline">
-          Tela Junto
+      <header className="flex items-center gap-2 border-b border-border/40 px-3 py-2.5 sm:gap-3 sm:px-4">
+        <span className="hidden font-heading text-sm tracking-wide text-dust-4 sm:inline">
+          SINAL
         </span>
-        <span className="rounded-full border border-border bg-card px-2.5 py-0.5 font-mono text-xs text-muted-foreground">
-          {codigo}
+        <span className="font-mono text-xs text-muted-foreground">
+          &gt; {codigo}
         </span>
 
         <div className="flex-1" />
@@ -180,9 +180,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </Button>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 p-3 md:grid-cols-[220px_1fr_300px]">
-        <aside className="order-2 rounded-xl border border-border bg-card/40 p-3 md:order-1">
-          <h2 className="mb-2 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 p-3 md:grid-cols-[200px_1fr_280px] md:gap-4 md:p-4">
+        <aside className="order-2 md:order-1">
+          <h2 className="mb-2 border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase">
             Participantes · {participantes.length}
           </h2>
           <ListaParticipantes participantes={participantes} euId={euId} />
@@ -190,7 +190,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
 
         <main className="order-1 min-h-[40vh] md:order-2 md:min-h-0">
           {nadaAtivo ? (
-            <div className="flex h-full flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border bg-card/20 p-10 text-center">
+            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-4 p-10 text-center">
               <p className="text-sm text-muted-foreground">
                 Ninguém está compartilhando a tela ainda.
               </p>
@@ -241,8 +241,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
           )}
         </main>
 
-        <aside className="order-3 flex min-h-[40vh] flex-col rounded-xl border border-border bg-card/40 p-3 md:min-h-0">
-          <h2 className="mb-2 px-1 text-xs font-medium tracking-wide text-muted-foreground uppercase">
+        <aside className="order-3 flex min-h-[40vh] flex-col md:min-h-0">
+          <h2 className="mb-2 border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase">
             Chat
           </h2>
           <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />

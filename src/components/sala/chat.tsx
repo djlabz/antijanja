@@ -31,8 +31,10 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-2">
-      <ScrollArea className="min-h-0 flex-1 rounded-lg border border-border bg-card/40">
-        <div className="flex flex-col gap-2.5 p-3">
+      {/* Sem caixa/borda ao redor do histórico — as mensagens vivem direto
+          no vazio, separadas por linha de base (ver DESIGN.md). */}
+      <ScrollArea className="min-h-0 flex-1">
+        <div className="flex flex-col gap-2 py-1">
           {mensagens.length === 0 && (
             <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
           )}
@@ -51,7 +53,7 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
         </div>
       </ScrollArea>
       <form
-        className="flex gap-2"
+        className="flex items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           enviar();
@@ -63,7 +65,7 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
           placeholder="Escreva uma mensagem"
           maxLength={500}
         />
-        <Button type="submit" size="icon" aria-label="Enviar mensagem">
+        <Button type="submit" size="icon" variant="ghost" aria-label="Enviar mensagem">
           <SendHorizontal className="size-4" />
         </Button>
       </form>
