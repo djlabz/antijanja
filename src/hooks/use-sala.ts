@@ -10,6 +10,8 @@ import {
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import type {
   ChatMessage,
+  ComandoVideo,
+  FonteVideo,
   Participant,
   ParticipantId,
 } from "@/lib/socket-events";
@@ -29,11 +31,18 @@ type Status = "conectando" | "conectado" | "erro";
  *
  * O socket é criado aqui dentro (não é um singleton importado) e fechado no
  * cleanup deste mesmo efeito — ver docs/decisions.md (ADR 006).
+ *
+ * `nome` pode chegar como string vazia — significa "atribua um nome de
+ * convidado" (o servidor decide, ver ADR 014). `pronto` controla só SE a
+ * conexão deve acontecer: falso enquanto a pessoa ainda está decidindo
+ * como vai se identificar (digitar nome ou entrar como convidado) — ver
+ * `EscolherNomeSala`.
  */
-export function useSala(codigo: string, nome: string) {
+export function useSala(codigo: string, nome: string, pronto: boolean) {
   const [status, setStatus] = useState<Status>("conectando");
   const [erro, setErro] = useState<string | null>(null);
   const [euId, setEuId] = useState<ParticipantId | null>(null);
+  const [meuNome, setMeuNome] = useState<string | null>(null);
   const [participantes, setParticipantes] = useState<Participant[]>([]);
   const [mensagens, setMensagens] = useState<ChatMessage[]>([]);
   const [estouCompartilhando, setEstouCompartilhando] = useState(false);
@@ -42,6 +51,10 @@ export function useSala(codigo: string, nome: string) {
     Record<ParticipantId, MediaStream>
   >({});
   const [linkPublico, setLinkPublico] = useState<string | null>(null);
+  const [fonteVideo, setFonteVideo] = useState<FonteVideo | null>(null);
+  const [ultimoComandoVideo, setUltimoComandoVideo] = useState<
+    (ComandoVideo & { de: ParticipantId }) | null
+  >(null);
 
   const socketRef = useRef<SocketSala | null>(null);
   const conexoesSaida = useRef(new Map<ParticipantId, RTCPeerConnection>());
@@ -89,10 +102,10 @@ export function useSala(codigo: string, nome: string) {
   }, []);
 
   useEffect(() => {
-    // `nome` chega vazio por um instante antes do sessionStorage hidratar
-    // (ver `hidratado` em `usuario-store.ts`) — não vale a pena abrir uma
-    // conexão fadada a um erro de validação do servidor por causa disso.
-    if (!nome) return;
+    // `pronto=false` cobre dois casos: o sessionStorage ainda não hidratou
+    // (ver `hidratado` em `usuario-store.ts`) e a pessoa ainda não decidiu
+    // como vai se identificar nesta sala (nome próprio ou convidado).
+    if (!pronto) return;
 
     const socket = criarSocket();
     socketRef.current = socket;
@@ -150,12 +163,14 @@ export function useSala(codigo: string, nome: string) {
       }
       euIdRef.current = resposta.euId;
       setEuId(resposta.euId);
+      setMeuNome(resposta.nome); // pode diferir de `nome` (convidado: veio vazio, o servidor decidiu).
       const todos = [
         ...resposta.participantes,
-        { id: resposta.euId, nome, compartilhando: false },
+        { id: resposta.euId, nome: resposta.nome, compartilhando: false },
       ];
       participantesRef.current = todos;
       setParticipantes(todos);
+      setFonteVideo(resposta.fonteVideo);
       setStatus("conectado");
     });
 
@@ -186,6 +201,14 @@ export function useSala(codigo: string, nome: string) {
 
     socket.on("link:publico", (url) => {
       setLinkPublico(url);
+    });
+
+    socket.on("fonte:atualizada", (fonte) => {
+      setFonteVideo(fonte);
+    });
+
+    socket.on("fonte:comando", (comando) => {
+      setUltimoComandoVideo(comando);
     });
 
     socket.on("compartilhar:iniciou", (id) => {
@@ -240,7 +263,7 @@ export function useSala(codigo: string, nome: string) {
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [codigo, nome, fecharConexaoEntrada, fecharConexaoSaida]);
+  }, [codigo, nome, pronto, fecharConexaoEntrada, fecharConexaoSaida]);
 
   const enviarMensagem = useCallback((texto: string) => {
     if (!texto.trim()) return;
@@ -336,16 +359,42 @@ export function useSala(codigo: string, nome: string) {
     }
   }, []);
 
+  const adicionarFonteVideo = useCallback(
+    (link: string, qualquerUmControla: boolean) =>
+      new Promise<{ ok: true } | { ok: false; erro: string }>((resolve) => {
+        if (!socketRef.current) {
+          resolve({ ok: false, erro: "Sem conexão com o servidor." });
+          return;
+        }
+        socketRef.current.emit("fonte:adicionar", { link, qualquerUmControla }, resolve);
+      }),
+    []
+  );
+
+  const removerFonteVideo = useCallback(() => {
+    socketRef.current?.emit("fonte:remover");
+  }, []);
+
+  const enviarComandoVideo = useCallback((comando: ComandoVideo) => {
+    socketRef.current?.emit("fonte:comando", comando);
+  }, []);
+
   return {
     status,
     erro,
     euId,
+    meuNome,
     participantes,
     mensagens,
     estouCompartilhando,
     streamLocal,
     streamsRemotos,
     linkPublico,
+    fonteVideo,
+    ultimoComandoVideo,
+    adicionarFonteVideo,
+    removerFonteVideo,
+    enviarComandoVideo,
     enviarMensagem,
     iniciarCompartilhamento,
     pararCompartilhamento,

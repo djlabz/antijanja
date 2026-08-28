@@ -28,8 +28,11 @@ quem hospeda a sessão. Sem servidor pago, sem banco de dados, sem contas.
 - `src/lib/socket-events.ts` → contrato de eventos Socket.IO compartilhado entre cliente e servidor (import relativo nos dois lados, sem depender do alias `@/`).
 - `src/hooks/use-sala.ts` → toda a lógica de uma sala: sinalização + WebRTC mesh.
 - `src/components/sala/` → UI da sala (vídeo, lista de participantes, chat).
-- `src/store/` → Zustand: nome de exibição (`sessionStorage`, por aba) e qualidade de transmissão preferida (`localStorage`, por dispositivo — ver ADR 011).
+- `src/store/` → Zustand: nome de exibição (`sessionStorage`, por aba — decidido só dentro da sala, ver ADR 016) e qualidade de transmissão preferida (`localStorage`, por dispositivo — ver ADR 011).
 - `src/lib/qualidade-transmissao.ts` → presets de resolução/fps e as funções que aplicam isso na captura (`getDisplayMedia`) e no bitrate de cada conexão de saída (`RTCRtpSender.setParameters`).
+- `src/components/sala/escolher-nome-sala.tsx` → tela de identificação (nome ou convidado) mostrada dentro da sala quando ainda não tem nome (ADR 014).
+- `src/lib/youtube.ts` → parsing de URL do YouTube (vídeo/playlist), sem `window`/DOM — importado tanto do cliente quanto de `server.ts`, igual `socket-events.ts`.
+- `src/components/sala/youtube-player.tsx` + `adicionar-fonte-dialog.tsx` → vídeo do YouTube sincronizado pra sala inteira (ADR 015).
 - `docs/features/` → especificação de cada funcionalidade (`NNN-nome.md`, prefixo sequencial, nunca reordene os já existentes).
 - `docs/decisions.md` → ADRs — por que cada decisão de arquitetura foi tomada.
 - `docs/tasks.md` → backlog.
@@ -67,6 +70,14 @@ deliberadamente deixado de fora.)*
   bug real, o conteúdo (e o overlay, no caso do Dialog) fica preso visível
   na tela mesmo com `data-closed` correto no DOM. Sempre `open`/`onOpenChange`
   com estado próprio + `{aberto && <...Content>}` (ADR 012).
+- Nunca volte a coletar o nome de exibição na home (`EntrarForm`) — isso já
+  causou uma condição de corrida real entre duas instâncias do
+  `usuario-store` (uma por rota, ver ADR 016). O nome é decidido só dentro
+  da própria sala (`EscolherNomeSala`, ADR 014).
+- Nunca guarde um "já hidratei" como campo do estado persistido de um store
+  Zustand — vira parte do JSON salvo e sofre a mesma corrida do ADR 016. Use
+  `persist.hasHydrated()`/`persist.onFinishHydration()` (via
+  `useSyncExternalStore`, ver `useUsuarioHidratado` em `usuario-store.ts`).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

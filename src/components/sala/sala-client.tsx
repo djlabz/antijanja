@@ -1,8 +1,14 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
-import { Info, LogOut, MonitorUp, MonitorX } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  Info,
+  LogOut,
+  MonitorUp,
+  MonitorX,
+  SquarePlay as YoutubeIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -10,12 +16,15 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSala } from "@/hooks/use-sala";
-import { useUsuarioStore } from "@/store/usuario-store";
+import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
 import { VideoTile } from "./video-tile";
+import { YoutubePlayer } from "./youtube-player";
 import { ListaParticipantes } from "./lista-participantes";
 import { Chat } from "./chat";
 import { CompartilharSalaDialog } from "./compartilhar-sala-dialog";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
+import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
+import { EscolherNomeSala } from "./escolher-nome-sala";
 
 interface SalaClientProps {
   codigo: string;
@@ -24,32 +33,57 @@ interface SalaClientProps {
 export function SalaClient({ codigo }: SalaClientProps) {
   const router = useRouter();
   const nome = useUsuarioStore((s) => s.nome);
-  const hidratado = useUsuarioStore((s) => s.hidratado);
+  const hidratado = useUsuarioHidratado();
+  const definirNome = useUsuarioStore((s) => s.definirNome);
 
-  useEffect(() => {
-    // Só decide redirecionar depois que o nome salvo no sessionStorage já
-    // foi lido — antes disso `nome` está temporariamente vazio mesmo pra
-    // quem já entrou (ver `hidratado` em `usuario-store.ts`).
-    if (hidratado && !nome) router.replace("/");
-  }, [hidratado, nome, router]);
+  // Quem clica em "Continuar como convidado" ainda não tem `nome` (é o
+  // próprio servidor que decide "Convidado N" — ver docs/decisions.md, ADR
+  // 013), mas já está pronto pra entrar. Sem isso, quem abrisse o link
+  // direto de uma sala (sem nunca ter passado pela home) ficava preso: o
+  // fluxo antigo redirecionava pra "/" e perdia o código da sala, ou nem
+  // isso — a página simplesmente não renderizava nada.
+  const [quisConvidado, setQuisConvidado] = useState(false);
+  const pronto = hidratado && (!!nome || quisConvidado);
 
   const {
     status,
     erro,
     euId,
+    meuNome,
     participantes,
     mensagens,
     estouCompartilhando,
     streamLocal,
     streamsRemotos,
     linkPublico,
+    fonteVideo,
+    ultimoComandoVideo,
+    adicionarFonteVideo,
+    removerFonteVideo,
+    enviarComandoVideo,
     enviarMensagem,
     iniciarCompartilhamento,
     pararCompartilhamento,
     atualizarQualidadeAoVivo,
-  } = useSala(codigo, nome);
+  } = useSala(codigo, nome, pronto);
 
-  if (!nome) return null;
+  // Guarda o nome final (digitado ou "Convidado N" atribuído pelo
+  // servidor) pra sobreviver a um refresh desta mesma aba.
+  useEffect(() => {
+    if (meuNome) definirNome(meuNome);
+  }, [meuNome, definirNome]);
+
+  if (!hidratado) return null; // instantâneo — não é o "tela preta infinita" de antes.
+
+  if (!pronto) {
+    return (
+      <EscolherNomeSala
+        codigo={codigo}
+        aoEscolherNome={definirNome}
+        aoEscolherConvidado={() => setQuisConvidado(true)}
+      />
+    );
+  }
 
   if (status === "erro") {
     return (
@@ -61,7 +95,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
   }
 
   const telas = Object.entries(streamsRemotos);
-  const ninguemCompartilhando = !streamLocal && telas.length === 0;
+  const nadaAtivo = !streamLocal && telas.length === 0 && !fonteVideo;
+  const souControladorDoVideo =
+    !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
 
   async function compartilhar() {
     try {
@@ -70,6 +106,13 @@ export function SalaClient({ codigo }: SalaClientProps) {
       // usuário cancelou o seletor de tela do navegador — sem erro pra mostrar.
     }
   }
+
+  const botaoAdicionarVideo = (
+    <Button size="sm" variant="outline" className="gap-1.5">
+      <YoutubeIcon className="size-3.5" />
+      <span className="hidden sm:inline">Adicionar vídeo</span>
+    </Button>
+  );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -116,6 +159,10 @@ export function SalaClient({ codigo }: SalaClientProps) {
           </div>
         )}
 
+        {!fonteVideo && (
+          <AdicionarFonteDialog trigger={botaoAdicionarVideo} aoAdicionar={adicionarFonteVideo} />
+        )}
+
         <ConfigTransmissaoPopover
           aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
         />
@@ -142,15 +189,26 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </aside>
 
         <main className="order-1 min-h-[40vh] md:order-2 md:min-h-0">
-          {ninguemCompartilhando ? (
+          {nadaAtivo ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 rounded-xl border border-dashed border-border bg-card/20 p-10 text-center">
               <p className="text-sm text-muted-foreground">
                 Ninguém está compartilhando a tela ainda.
               </p>
-              <Button onClick={compartilhar} className="gap-1.5">
-                <MonitorUp className="size-4" />
-                Compartilhar tela
-              </Button>
+              <div className="flex flex-wrap items-center justify-center gap-2">
+                <Button onClick={compartilhar} className="gap-1.5">
+                  <MonitorUp className="size-4" />
+                  Compartilhar tela
+                </Button>
+                <AdicionarFonteDialog
+                  aoAdicionar={adicionarFonteVideo}
+                  trigger={
+                    <Button variant="outline" className="gap-1.5">
+                      <YoutubeIcon className="size-4" />
+                      Adicionar vídeo
+                    </Button>
+                  }
+                />
+              </div>
               <p className="max-w-sm text-xs text-muted-foreground">
                 Pra levar o áudio de um vídeo (YouTube, por exemplo) sem
                 pegar o áudio do Discord, escolha compartilhar{" "}
@@ -160,6 +218,17 @@ export function SalaClient({ codigo }: SalaClientProps) {
             </div>
           ) : (
             <div className="grid h-full auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
+              {fonteVideo && (
+                <YoutubePlayer
+                  key={fonteVideo.youtubeId}
+                  youtubeId={fonteVideo.youtubeId}
+                  ehPlaylist={fonteVideo.ehPlaylist}
+                  souControlador={souControladorDoVideo}
+                  ultimoComando={ultimoComandoVideo}
+                  onComando={enviarComandoVideo}
+                  onRemover={souControladorDoVideo ? removerFonteVideo : undefined}
+                />
+              )}
               {streamLocal && <VideoTile stream={streamLocal} nome="Você" mudo />}
               {telas.map(([id, stream]) => (
                 <VideoTile

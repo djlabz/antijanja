@@ -19,6 +19,18 @@
       quando quem hospeda está em `localhost` (ADR 011).
 - [x] Corrigido bug crítico: `Dialog`/`Popover` ficavam presos na tela depois
       de fechados (ADR 012).
+- [x] `suppressHydrationWarning` em `<html>`/`<body>` — hydration mismatch
+      causado por extensão de navegador (Monica), não por bug do app (ADR 013).
+- [x] Link de "Compartilhar sala" copia sozinho ao clicar, sem precisar de
+      um segundo clique no botão de copiar.
+- [x] Tela de identificação dentro da própria sala (nome digitado ou
+      "Continuar como convidado", numerado pelo servidor) — corrige quem
+      entrava por link direto e ficava preso numa tela preta (ADR 014).
+- [x] Vídeo do YouTube sincronizado ("controle remoto" pra sala inteira,
+      com permissão de controle configurável) — ADR 015.
+- [x] Corrigido bug crítico de condição de corrida entre duas instâncias do
+      store de nome (uma por rota) que podia travar a entrada na sala pra
+      sempre — nome agora é decidido só dentro da própria sala (ADR 016).
 
 ## Próximos passos possíveis (não iniciados)
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o
@@ -30,3 +42,6 @@
       o link a cada `npm run share`) — precisa de conta gratuita na Cloudflare.
 - [ ] Investigar a causa raiz do bug do ADR 012 do lado da biblioteca
       (`@base-ui/react`/`tw-animate-css`) — hoje contornado, não corrigido na origem.
+- [ ] Twitch/Kick como fonte de vídeo (só YouTube por enquanto — ADR 015).
+- [ ] Indicador de tela cheia / fullscreen pro player do YouTube (o
+      `VideoTile` de compartilhamento de tela já tem, o `YoutubePlayer` ainda não).

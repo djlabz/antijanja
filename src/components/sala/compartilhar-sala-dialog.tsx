@@ -70,7 +70,13 @@ export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSala
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
-      <DialogTrigger render={<Button size="sm" className="gap-1.5" />}>
+      <DialogTrigger
+        render={
+          // Copia assim que abre — não precisa clicar em nada a mais pra
+          // levar o link pra área de transferência, como pedido.
+          <Button size="sm" className="gap-1.5" onClick={copiar} />
+        }
+      >
         <Link2 className="size-3.5" />
         <span className="hidden sm:inline">Compartilhar sala</span>
       </DialogTrigger>

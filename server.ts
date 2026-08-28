@@ -18,12 +18,16 @@ import type {
   ParticipantId,
 } from "./src/lib/socket-events";
 import {
+  definirFonteVideo,
   entrarNaSala,
+  gerarNomeConvidado,
   listarParticipantes,
   marcarCompartilhando,
   nomeEmUso,
+  obterFonteVideo,
   sairDaSala,
 } from "./src/server/rooms";
+import { extrairYoutube } from "./src/lib/youtube";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOST ?? "0.0.0.0";
@@ -99,34 +103,41 @@ app.prepare().then(() => {
 
     socket.on("sala:entrar", ({ codigo, nome }, ack) => {
       const codigoNormalizado = codigo.trim().toLowerCase();
-      const nomeNormalizado = nome.trim().slice(0, 30);
-
-      if (!codigoNormalizado || !nomeNormalizado) {
-        ack({ ok: false, erro: "Informe um nome e um código de sala." });
+      if (!codigoNormalizado) {
+        ack({ ok: false, erro: "Informe um código de sala." });
         return;
       }
-      if (nomeEmUso(codigoNormalizado, nomeNormalizado)) {
+
+      // Nome vazio = "Continuar como convidado": o servidor atribui
+      // "Convidado N" com base em quem já está na sala — só ele sabe isso
+      // de forma confiável (ver docs/decisions.md, ADR 014).
+      let nomeFinal = nome.trim().slice(0, 30);
+      if (!nomeFinal) {
+        nomeFinal = gerarNomeConvidado(codigoNormalizado);
+      } else if (nomeEmUso(codigoNormalizado, nomeFinal)) {
         ack({ ok: false, erro: "Esse nome já está em uso nessa sala." });
         return;
       }
 
       dados.codigo = codigoNormalizado;
-      dados.nome = nomeNormalizado;
+      dados.nome = nomeFinal;
       socket.join(codigoNormalizado);
 
       const participantesAntes = listarParticipantes(codigoNormalizado);
-      entrarNaSala(codigoNormalizado, socket.id, nomeNormalizado);
+      entrarNaSala(codigoNormalizado, socket.id, nomeFinal);
 
       ack({
         ok: true,
         euId: socket.id,
+        nome: nomeFinal,
         participantes: participantesAntes,
+        fonteVideo: obterFonteVideo(codigoNormalizado),
       });
       socket
         .to(codigoNormalizado)
         .emit("participante:entrou", {
           id: socket.id,
-          nome: nomeNormalizado,
+          nome: nomeFinal,
           compartilhando: false,
         });
     });
@@ -160,11 +171,56 @@ app.prepare().then(() => {
       io.to(destino).emit("webrtc:sinal", { de: socket.id, tipo, dados: payload });
     });
 
+    socket.on("fonte:adicionar", ({ link, qualquerUmControla }, ack) => {
+      if (!dados.codigo) {
+        ack({ ok: false, erro: "Entre numa sala primeiro." });
+        return;
+      }
+      const extraido = extrairYoutube(link);
+      if (!extraido) {
+        ack({ ok: false, erro: "Não reconheci esse link do YouTube." });
+        return;
+      }
+      const fonte = {
+        youtubeId: extraido.id,
+        ehPlaylist: extraido.ehPlaylist,
+        adicionadoPor: socket.id,
+        qualquerUmControla,
+      };
+      definirFonteVideo(dados.codigo, fonte);
+      ack({ ok: true });
+      io.to(dados.codigo).emit("fonte:atualizada", fonte);
+    });
+
+    socket.on("fonte:remover", () => {
+      if (!dados.codigo) return;
+      definirFonteVideo(dados.codigo, null);
+      io.to(dados.codigo).emit("fonte:atualizada", null);
+    });
+
+    socket.on("fonte:comando", (comando) => {
+      if (!dados.codigo) return;
+      const fonte = obterFonteVideo(dados.codigo);
+      if (!fonte) return;
+      // Só quem adicionou pode controlar, a menos que "qualquer um" esteja
+      // ligado — o servidor decide isso, nunca confia no cliente que manda.
+      if (!fonte.qualquerUmControla && fonte.adicionadoPor !== socket.id) return;
+      socket.to(dados.codigo).emit("fonte:comando", { ...comando, de: socket.id });
+    });
+
     socket.on("disconnect", () => {
       if (!dados.codigo) return;
       sairDaSala(dados.codigo, socket.id);
       socket.to(dados.codigo).emit("participante:saiu", socket.id);
       socket.to(dados.codigo).emit("compartilhar:parou", socket.id);
+
+      // Se só quem saiu podia controlar o vídeo, ninguém mais consegue —
+      // melhor tirar de vez do que deixar um player travado pra sempre.
+      const fonte = obterFonteVideo(dados.codigo);
+      if (fonte && !fonte.qualquerUmControla && fonte.adicionadoPor === socket.id) {
+        definirFonteVideo(dados.codigo, null);
+        socket.to(dados.codigo).emit("fonte:atualizada", null);
+      }
     });
   });
 

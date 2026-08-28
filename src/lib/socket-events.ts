@@ -29,13 +29,46 @@ export interface SinalPayload {
   dados: unknown;
 }
 
+/**
+ * Um vídeo/playlist do YouTube compartilhado com a sala inteira — não é
+ * compartilhamento de tela, é um player sincronizado (ver docs/decisions.md,
+ * ADR 015). Só uma fonte ativa por sala de cada vez, por simplicidade.
+ */
+export interface FonteVideo {
+  youtubeId: string;
+  ehPlaylist: boolean;
+  adicionadoPor: ParticipantId;
+  /** Se falso, só quem adicionou pode dar play/pause/trocar o vídeo. */
+  qualquerUmControla: boolean;
+}
+
+/**
+ * Comandos de controle do player, retransmitidos pelo servidor sem
+ * interpretar (quem manda é sempre quem tem permissão de controlar — ver
+ * `fonte:comando` nos eventos abaixo). `sincronizar` é um "heartbeat"
+ * periódico de quem controla, pra corrigir desvio de quem só assiste.
+ */
+export type ComandoVideo =
+  | { tipo: "tocar"; emSegundos: number }
+  | { tipo: "pausar"; emSegundos: number }
+  | { tipo: "sincronizar"; emSegundos: number; tocando: boolean }
+  | { tipo: "carregar"; youtubeId: string; ehPlaylist: boolean };
+
 /** Eventos emitidos pelo cliente para o servidor. */
 export interface EventosCliente {
   "sala:entrar": (
+    // `nome` vazio pede pro servidor atribuir um nome de convidado
+    // ("Convidado 1", "Convidado 2"...) — ver docs/decisions.md (ADR 014).
     payload: { codigo: string; nome: string },
     ack: (
       resposta:
-        | { ok: true; euId: ParticipantId; participantes: Participant[] }
+        | {
+            ok: true;
+            euId: ParticipantId;
+            nome: string;
+            participantes: Participant[];
+            fonteVideo: FonteVideo | null;
+          }
         | { ok: false; erro: string }
     ) => void
   ) => void;
@@ -43,6 +76,12 @@ export interface EventosCliente {
   "compartilhar:iniciar": () => void;
   "compartilhar:parar": () => void;
   "webrtc:sinal": (payload: SinalPayload & { para: ParticipantId }) => void;
+  "fonte:adicionar": (
+    payload: { link: string; qualquerUmControla: boolean },
+    ack: (resposta: { ok: true } | { ok: false; erro: string }) => void
+  ) => void;
+  "fonte:remover": () => void;
+  "fonte:comando": (comando: ComandoVideo) => void;
 }
 
 /** Eventos emitidos pelo servidor para o cliente. */
@@ -61,4 +100,6 @@ export interface EventosServidor {
    * link de convite que funciona pros amigos (ver docs/decisions.md, ADR 011).
    */
   "link:publico": (url: string) => void;
+  "fonte:atualizada": (fonte: FonteVideo | null) => void;
+  "fonte:comando": (comando: ComandoVideo & { de: ParticipantId }) => void;
 }

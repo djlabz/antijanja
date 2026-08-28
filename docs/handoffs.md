@@ -133,3 +133,48 @@
   de navegador Monica injeta `monica-id`/`monica-version` no `<body>` antes
   do React hidratar — não é bug do app (ver ADR 013). Corrigido com
   `suppressHydrationWarning` em `<html>` e `<body>` (`src/app/layout.tsx`).
+
+## 2026-08-28 - Auto-copy do link, identidade dentro da sala, vídeo do YouTube
+- Três pedidos do usuário: (1) o botão "Compartilhar sala" devia copiar o
+  link sozinho, sem precisar de um segundo clique; (2) quem entra por um
+  link direto sem nome salvo ficava numa tela preta — devia aparecer uma
+  tela pra escolher nome ou entrar como "Convidado N" (numerado); (3) uma
+  função de adicionar vídeo do YouTube que funcione como "controle remoto"
+  sincronizado pra sala inteira, inspirada num print de referência de um
+  app concorrente (que também mostrava Twitch/Kick, não pedidos).
+- (1) resolvido trivialmente: o `onClick` do próprio gatilho do diálogo
+  (`DialogTrigger`) chama `copiar()` direto, sem esperar clique no botão
+  de dentro do diálogo.
+- (2)+(3) implementados juntos (ADR 014 e 015 em `docs/decisions.md`):
+  `EscolherNomeSala` (tela nova, dentro da sala) + servidor atribuindo
+  "Convidado N" quando o nome chega vazio; `YoutubePlayer` +
+  `AdicionarFonteDialog` + estado de fonte de vídeo por sala no servidor
+  (`FonteVideo`, com "só eu"/"qualquer um controla"), sincronizado por
+  comandos (tocar/pausar/carregar) mais um heartbeat de 5s. `src/lib/youtube.ts`
+  faz o parsing da URL, compartilhado entre cliente e `server.ts`.
+- **Bug crítico achado e corrigido durante o teste, não pedido pelo
+  usuário** (ADR 016): ao implementar (2), reproduzi de forma consistente
+  (não é falha de ambiente de teste) uma condição de corrida real no fluxo
+  antigo "digitar nome na home → navegar pra sala" — o Next empacota
+  `usuario-store.ts` numa cópia por rota, então "/" e "/sala/[codigo]"
+  tinham cada um sua PRÓPRIA instância do mesmo store Zustand, e as duas
+  escreviam no mesmo `sessionStorage` quase ao mesmo tempo, uma podendo
+  gravar um `hidratado: false` parcial que a outra lia como definitivo —
+  travando a entrada na sala pra sempre em alguns casos. Corrigido
+  removendo `hidratado` do estado persistido (virou um hook próprio via
+  `useSyncExternalStore` sobre a API nativa do zustand-persist) e, mais
+  importante, removendo a coleta de nome da home inteiramente — o nome
+  agora é SEMPRE decidido dentro da própria sala, nunca precisa saltar
+  entre instâncias de store de rotas diferentes.
+- Testado de ponta a ponta neste ambiente, com o dev server rodando de
+  verdade: link direto sem nome → tela de escolha → nome digitado ("Ana")
+  e "Convidado" clicado em duas abas separadas na mesma sala → numeração
+  "Convidado 1"/"Convidado 2" corretas, contagem de participantes
+  correta nas três abas. Auto-copy confirmado instrumentando
+  `navigator.clipboard.writeText` (o ambiente de teste nega permissão de
+  clipboard de verdade, mas confirma que a chamada acontece no clique do
+  gatilho, não precisa de um segundo clique). Vídeo do YouTube testado com
+  um link real (`dQw4w9WgXcQ`) — carregou de verdade (IFrame API real,
+  título do vídeo apareceu), sincronizou pra quem entrou depois já vendo o
+  vídeo carregado sem poder controlar (permissão "só eu"), e remover
+  sincronizou pros dois lados.

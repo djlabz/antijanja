@@ -72,6 +72,11 @@ mesmo estiver em `localhost`.
 - Clique no ícone de engrenagem pra escolher resolução, taxa de quadros e
   bitrate máximo da sua transmissão (padrão: 1080p, 30fps, 4 Mbps) — vale a
   pena baixar se a transmissão travar, principalmente em upload mais fraco.
+- Quem entra pelo link sem nome salvo escolhe um nome ou entra como
+  "Convidado N" — sem cadastro, sempre dentro da própria sala.
+- "Adicionar vídeo" cola um link do YouTube (vídeo ou playlist) e todo
+  mundo na sala assiste junto, sincronizado — como um controle remoto
+  compartilhado. Só YouTube por enquanto.
 
 Detalhes técnicos e por quê de cada escolha: `docs/decisions.md`.
 Escopo da funcionalidade: `docs/features/000-sala-compartilhamento-tela.md`.

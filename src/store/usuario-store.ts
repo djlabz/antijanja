@@ -1,30 +1,31 @@
+import { useSyncExternalStore } from "react";
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 
 interface UsuarioState {
   nome: string;
-  hidratado: boolean;
   definirNome: (nome: string) => void;
 }
 
 /**
- * Guarda só o nome de exibição escolhido na tela inicial, pra sobreviver à
- * navegação até `/sala/[codigo]` sem precisar ir na URL. `sessionStorage`
- * porque é descartável por aba — não tem conta, não tem nada pra persistir
- * entre sessões.
- *
- * `hidratado` existe porque a leitura do `sessionStorage` só acontece depois
- * da primeira renderização no cliente (Next faz uma passada inicial "vazia"
- * pra bater com o SSR). Até `hidratado` virar `true`, `nome` pode estar
- * errado (sempre `""`) — quem decide redirecionar por falta de nome
- * (`SalaClient`) precisa esperar esse sinal antes de agir, senão expulsa até
- * quem já tinha entrado.
+ * Guarda o nome de exibição escolhido — só pra sobreviver a um F5 na MESMA
+ * sala (`sessionStorage`, descartável por aba). Não existe mais um fluxo
+ * separado na home pra digitar o nome antes de navegar: isso causava uma
+ * condição de corrida real (bug achado em produção, não só teórico) — o
+ * Next empacota `usuario-store.ts` numa cópia por rota, então "/" e
+ * "/sala/[codigo]" tinham cada um sua PRÓPRIA instância deste store, e as
+ * duas escreviam no mesmo `sessionStorage` quase ao mesmo tempo (uma
+ * escrita da home podia acontecer ANTES da hidratação da home terminar,
+ * gravando um estado parcial que a página da sala lia limpo, ficando presa
+ * pra sempre com "sem nome"). A correção: o nome só é decidido DENTRO da
+ * própria sala (`EscolherNomeSala`), na mesma árvore de componentes que vai
+ * usá-lo — nunca precisa saltar de uma rota pra outra. Ver docs/decisions.md
+ * (ADR 016).
  */
 export const useUsuarioStore = create<UsuarioState>()(
   persist(
     (set) => ({
       nome: "",
-      hidratado: false,
       definirNome: (nome) => set({ nome }),
     }),
     {
@@ -38,11 +39,21 @@ export const useUsuarioStore = create<UsuarioState>()(
               removeItem: () => {},
             }
       ),
-      // Roda depois que o estado é lido do sessionStorage (com sucesso ou
-      // não) — é o sinal de que `nome` já reflete o que estava salvo.
-      onRehydrateStorage: () => () => {
-        useUsuarioStore.setState({ hidratado: true });
-      },
     }
   )
 );
+
+/**
+ * `true` quando ESTA instância do store já terminou de ler o
+ * `sessionStorage`. Usa a própria API do zustand-persist (`hasHydrated`/
+ * `onFinishHydration`) em vez de guardar isso como um campo do estado —
+ * um campo assim acabaria persistido junto com `nome` e sujeito à mesma
+ * condição de corrida que motivou o ADR 016.
+ */
+export function useUsuarioHidratado(): boolean {
+  return useSyncExternalStore(
+    (aoMudar) => useUsuarioStore.persist.onFinishHydration(aoMudar),
+    () => useUsuarioStore.persist.hasHydrated(),
+    () => false // no servidor a hidratação nunca aconteceu — é sempre false lá.
+  );
+}
