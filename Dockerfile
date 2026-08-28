@@ -1,4 +1,4 @@
-# Tela Junto roda com um servidor customizado (Next.js + Socket.IO no mesmo
+# Sinal roda com um servidor customizado (Next.js + Socket.IO no mesmo
 # processo, ver server.ts e docs/decisions.md ADR 002) — por isso a imagem
 # final ainda precisa do `tsx` e do código-fonte em tempo de execução, não só
 # do build do Next. Pra manter isso simples (zero chance de faltar um

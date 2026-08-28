@@ -61,9 +61,9 @@ de um servidor pago de terceiros — quem quiser usar sobe o próprio servidor
 
 ## Brand Commitments
 
-- Nome atual do projeto: "Tela Junto" — mas o usuário sinalizou abertura a
-  um nome mais "legal"; tratar como decisão em aberto, não travada, pra um
-  trabalho de marca futuro.
+- Nome do produto: **Sinal** (era "Tela Junto" — renomeado, decisão travada,
+  ver ADR 018 em `docs/decisions.md`). O repositório no GitHub continua se
+  chamando `antijanja` — nome do repo, não do produto, não muda.
 - Restrição visual explícita, vinda diretamente do usuário (não inferida): a
   identidade visual deve manter uma base preta/escura, mesmo que o resto
   (paleta de apoio, tipografia, personalidade) fique mais ousado.

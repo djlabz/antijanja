@@ -1,7 +1,11 @@
-# Tela Junto
+# Sinal
 
 Compartilhamento de tela em grupo (estilo GoLive), rodando de graça no PC de
 quem hospeda a sessão. Sem servidor pago, sem banco de dados, sem contas.
+
+O repositório GitHub chama `antijanja` (nome do repo, não muda); o produto
+chama Sinal — era "Tela Junto" antes do redesign visual (ADR 018 em
+`docs/decisions.md`). Não confunda os dois nomes em código/docs novos.
 
 ## Stack
 

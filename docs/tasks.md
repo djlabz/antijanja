@@ -33,6 +33,9 @@
       sempre — nome agora é decidido só dentro da própria sala (ADR 016).
 - [x] `render.yaml` — deploy opcional no Render (grátis, sem depender do PC
       do usuário ligado; troca "seu processamento" por "sempre disponível") — ADR 017.
+- [x] Redesign visual completo ("Fila de Créditos Cracktro" — tema âmbar,
+      sem cards/bordas, tipografia bitmap) e rename do produto pra **Sinal**
+      (repositório GitHub continua `antijanja`) — ADR 018.
 
 ## Próximos passos possíveis (não iniciados)
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o

@@ -1,9 +1,13 @@
-# Tela Junto
+# Sinal
 
 Compartilhe sua tela com os amigos numa sala, sem cadastro — inspirado no
 [GoLive](https://golive.nemtudo.me), mas rodando de graça direto do seu
 computador (sem servidor pago, sem banco de dados). Veja `docs/decisions.md`
 pra entender as trocas feitas pra isso funcionar sem custo.
+
+> O repositório no GitHub chama `antijanja` (nome do repo, não muda) — o
+> produto em si chama **Sinal** (era "Tela Junto" antes do redesign, ver
+> ADR 018).
 
 ## Rodar com Docker (mais fácil — não precisa instalar Node)
 
@@ -73,10 +77,10 @@ processamento de terceiro — não é mais "seu próprio PC" (ver ADR 017 em
 2. **New +** → **Blueprint**.
 3. Conecte sua conta do GitHub (se ainda não tiver conectado) e escolha o
    repositório `djlabz/antijanja`.
-4. O Render lê o `render.yaml` sozinho e já mostra o serviço `tela-junto`
+4. O Render lê o `render.yaml` sozinho e já mostra o serviço `sinal`
    configurado (Docker, plano Free). Clique em **Apply**.
 5. Espera o primeiro build terminar (uns minutos) — o Render te dá uma URL
-   tipo `https://tela-junto-xxxx.onrender.com`. É só isso, já dá pra
+   tipo `https://sinal-xxxx.onrender.com`. É só isso, já dá pra
    compartilhar esse link com os amigos.
 
 Não precisa configurar nenhuma variável de ambiente a mais — não ligue

@@ -1,4 +1,4 @@
-# Registro de Decisões de Arquitetura (ADR) - Tela Junto
+# Registro de Decisões de Arquitetura (ADR) - Sinal (era "Tela Junto")
 
 ## ADR 001 - Sem banco de dados, estado só em memória
 - **Data**: 2026-08-27
@@ -141,3 +141,12 @@
 - **Decisão**: `render.yaml` na raiz do repositório declara um Blueprint do Render — um serviço `web` do tipo `runtime: docker`, plano `free`, apontando pro `Dockerfile` que já existia (nenhuma mudança nele foi necessária: `server.ts` já lê `PORT`/`HOST` do ambiente, e o Render injeta o `PORT` dele por cima do `ENV PORT=3000` do Dockerfile). De propósito **sem** `TUNNEL=cloudflare`: o Render já entrega uma URL pública própria (`https://<nome>.onrender.com`), então o túnel do Cloudflare (ADR 011) seria redundante — o diálogo "Compartilhar sala" já cai de volta pra `window.location.origin` quando não existe `linkPublico`, então funciona certo ali sem nenhuma mudança de código.
 - **Limitações do plano grátis do Render** (verificadas na documentação oficial e em fontes de terceiros, agosto/2026): sem cartão de crédito pra começar; 750 horas grátis por mês (dá pra um serviço rodando o mês inteiro); o serviço "dorme" depois de 15 minutos sem tráfego HTTP, com um "cold start" de 30–60s pro próximo acesso acordar ele; WebSocket funciona normalmente (a documentação do Render não impõe timeout fixo, só recomenda keepalive — que o Socket.IO já faz sozinho por padrão, então a sala não deve cair sozinha enquanto tiver gente usando).
 - **Efeito prático**: como o vídeo em si trafega P2P (WebRTC, nunca passa pelo servidor), o Render só serve as páginas e retransmite mensagens pequenas de sinalização/chat — não deve chegar perto de nenhum limite de banda do plano grátis. O usuário decide, ciente do trade-off, se quer manter o fluxo 100% no próprio PC (ADR 005/010/011) ou usar o Render pra não depender do PC estar ligado.
+
+---
+
+## ADR 018 - Produto renomeado pra "Sinal" (repositório continua "antijanja")
+- **Data**: 2026-08-28
+- **Contexto**: Em paralelo ao trabalho desta sessão, uma redesign visual completa (skill `impeccable`, rodada numa sessão separada do Claude Code sobre o mesmo repositório — ver `docs/handoffs.md`) trocou o tema visual e, junto, o nome do produto de "Tela Junto" pra "Sinal" (ver `DESIGN.md`, seed `22df9449`). O usuário confirmou explicitamente: quer manter esse nome novo em todo lugar visível — **exceto** o nome do repositório no GitHub, que continua `antijanja` (já em uso, com histórico, link compartilhado com o Render etc. — trocar geraria mais confusão do que resolveria).
+- **Decisão**: "Sinal" é o nome do produto daqui pra frente — usado em `README.md`, `AGENTS.md`, `PRODUCT.md`, título de `docs/decisions.md`, `package.json` (`name: "sinal"`), `render.yaml` (serviço `sinal`, URL `sinal-xxxx.onrender.com`) e em toda a interface (já feito pela sessão de redesign: `<title>`, home, header da sala). "antijanja" continua sendo só o nome do repositório Git — não aparece em lugar nenhum da interface nem da documentação como nome do produto.
+- **Fora do escopo desta mudança**: chaves internas de `sessionStorage`/`localStorage` (`tela-junto:usuario`, `tela-junto:config-transmissao` em `src/store/`) continuam com o prefixo antigo — são identificadores internos invisíveis ao usuário, sem necessidade prática de migrar; trocar geraria só reset de preferências salvas sem nenhum ganho visível.
+- **Efeito prático**: qualquer documentação ou código novo deve usar "Sinal" como nome do produto. Menções antigas a "Tela Junto" dentro do *corpo* de ADRs anteriores a este (ex: ADR 008) não foram reescritas — são registro histórico de decisões tomadas quando o projeto ainda tinha esse nome, e um ADR não se reescreve retroativamente.

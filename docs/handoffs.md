@@ -201,3 +201,32 @@
   `TUNNEL=cloudflare`: o Render já é público por conta própria, e o
   diálogo "Compartilhar sala" já cai pra `window.location.origin` sozinho
   quando não tem `linkPublico` de túnel.
+
+## 2026-08-28 - Redesign "Sinal" (sessão paralela) + alinhamento de nome
+- Enquanto esta sessão trabalhava no deploy do Render, uma **sessão separada
+  do Claude Code, rodando ao mesmo tempo sobre o mesmo repositório**, usou a
+  skill `impeccable` (`.claude/skills/impeccable/`) pra fazer um redesign
+  visual completo — tema "Fila de Créditos Cracktro" (vazio preto emissivo,
+  acento âmbar, tipografia bitmap Pixelify Sans pros rótulos, sem
+  cards/bordas — profundidade por opacidade) e renomeou o produto de "Tela
+  Junto" pra **Sinal**. Commitado por aquela sessão como `8da14fd`.
+- Percebido no meio do trabalho desta sessão quando `globals.css` e
+  `layout.tsx` apareceram modificados no disco sem eu ter feito essas
+  edições. Parei, expliquei a situação pro usuário (duas sessões
+  concorrentes no mesmo diretório é um risco real de conflito) e perguntei
+  antes de continuar — usuário confirmou que era intencional e pra manter.
+- Depois que aquela sessão terminou e commitou, alinhei o resto do projeto
+  que ela não tocou (não era escopo dela — ela mexeu só em código/visual):
+  `package.json` (`name: "sinal"`), `render.yaml` (serviço `sinal`),
+  `README.md`, `AGENTS.md`, `PRODUCT.md`, título de `docs/decisions.md` —
+  tudo pra dizer "Sinal", nunca mais "Tela Junto" (ADR 018). O nome do
+  repositório no GitHub continua `antijanja` de propósito — o usuário foi
+  explícito que só o repo fica com o nome antigo/arbitrário, o resto (app,
+  docs) deveria ser só "Sinal", pra não ter três nomes diferentes flutuando.
+- Build e lint conferidos depois de juntar o trabalho das duas sessões —
+  tudo passou limpo.
+- **Lição registrada pro futuro** (também em `AGENTS.md`/memória): rodar
+  duas sessões do Claude Code ao mesmo tempo sobre o mesmo diretório de
+  projeto pode gerar exatamente esse tipo de susto — mudanças aparecendo no
+  disco sem uma sessão saber da outra. Não é proibido, mas vale checar
+  `git status`/`git log` com frequência quando isso acontecer.
