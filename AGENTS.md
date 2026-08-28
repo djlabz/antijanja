@@ -28,7 +28,8 @@ quem hospeda a sessão. Sem servidor pago, sem banco de dados, sem contas.
 - `src/lib/socket-events.ts` → contrato de eventos Socket.IO compartilhado entre cliente e servidor (import relativo nos dois lados, sem depender do alias `@/`).
 - `src/hooks/use-sala.ts` → toda a lógica de uma sala: sinalização + WebRTC mesh.
 - `src/components/sala/` → UI da sala (vídeo, lista de participantes, chat).
-- `src/store/` → Zustand (hoje só o nome de exibição, persistido em `sessionStorage`).
+- `src/store/` → Zustand: nome de exibição (`sessionStorage`, por aba) e qualidade de transmissão preferida (`localStorage`, por dispositivo — ver ADR 011).
+- `src/lib/qualidade-transmissao.ts` → presets de resolução/fps e as funções que aplicam isso na captura (`getDisplayMedia`) e no bitrate de cada conexão de saída (`RTCRtpSender.setParameters`).
 - `docs/features/` → especificação de cada funcionalidade (`NNN-nome.md`, prefixo sequencial, nunca reordene os já existentes).
 - `docs/decisions.md` → ADRs — por que cada decisão de arquitetura foi tomada.
 - `docs/tasks.md` → backlog.
@@ -61,6 +62,11 @@ deliberadamente deixado de fora.)*
   cliente — foi tentado, quebrou com Fast Refresh (ADR 006). O socket vive
   dentro do `useEffect` que o usa.
 - Nunca renderize tags `<script>` manualmente em Client Components (React 19 bloqueia).
+- Nunca deixe um `Dialog`/`Popover`/`AlertDialog` (Shadcn/`@base-ui/react`)
+  incontrolado nem confie na animação de saída dele pra sumir da tela —
+  bug real, o conteúdo (e o overlay, no caso do Dialog) fica preso visível
+  na tela mesmo com `data-closed` correto no DOM. Sempre `open`/`onOpenChange`
+  com estado próprio + `{aberto && <...Content>}` (ADR 012).
 
 <!-- BEGIN:nextjs-agent-rules -->
 

@@ -16,27 +16,30 @@ cd antijanja
 docker compose up
 ```
 
-Isso sobe **dois** serviços: o app (`http://localhost:3000`, pra quem tá na
-mesma rede) e um túnel grátis da Cloudflare (pra quem tá fora). O link
-público aparece nos logs — se não aparecer na tela de primeira, roda:
+Isso já sobe o app **com** um túnel grátis da Cloudflare — o link público
+aparece direto nos logs. Se não aparecer na tela na hora, roda:
 
 ```bash
-docker compose logs tunnel
+docker compose logs app | grep trycloudflare
 ```
 
 Procure uma linha assim e manda esse link pros amigos:
 
 ```
-your quick tunnel has been created! visit it at:
-https://algo-aleatorio-tipo-isso.trycloudflare.com
+> Link público (compartilhe com os amigos): https://algo-aleatorio-tipo-isso.trycloudflare.com
 ```
 
+Ou simplesmente clique em "Compartilhar sala" dentro do app — o link que
+aparece lá **já vem pronto com esse endereço**, mesmo se você mesmo abrir
+`http://localhost:3000` no seu navegador pra usar.
+
 `docker compose down` derruba tudo. Se só quiser usar na rede local, sem
-expor pra internet: `docker compose up app` (sem o serviço do túnel).
+expor pra internet: apague/comente a linha `TUNNEL: cloudflare` do
+`docker-compose.yml` antes de subir.
 
 > A URL do túnel muda toda vez que a stack sobe de novo — proposital (ver
-> ADR 005/010 em `docs/decisions.md`), o objetivo era zero configuração, não
-> link fixo.
+> ADR 005/010/011 em `docs/decisions.md`), o objetivo era zero configuração,
+> não link fixo.
 
 ## Rodar sem Docker (desenvolvimento)
 
@@ -53,8 +56,9 @@ Pra convidar os amigos de fora da sua rede sem Docker:
 npm run share
 ```
 
-Isso sobe o servidor **e** abre o mesmo túnel do Cloudflare ao mesmo tempo,
-via terminal.
+Isso sobe o servidor **e** o mesmo túnel do Cloudflare junto, no mesmo
+processo — o link do "Compartilhar sala" já sai pronto, mesmo se você
+mesmo estiver em `localhost`.
 
 ## Como funciona (resumo)
 
@@ -65,6 +69,9 @@ via terminal.
   pra combinar quem fala com quem (Socket.IO), o vídeo em si não passa por
   ele além do próprio compartilhamento.
 - Nada fica salvo: fechar o servidor apaga todas as salas.
+- Clique no ícone de engrenagem pra escolher resolução, taxa de quadros e
+  bitrate máximo da sua transmissão (padrão: 1080p, 30fps, 4 Mbps) — vale a
+  pena baixar se a transmissão travar, principalmente em upload mais fraco.
 
 Detalhes técnicos e por quê de cada escolha: `docs/decisions.md`.
 Escopo da funcionalidade: `docs/features/000-sala-compartilhamento-tela.md`.
@@ -82,7 +89,9 @@ Escopo da funcionalidade: `docs/features/000-sala-compartilhamento-tela.md`.
 - Sem servidor TURN: em redes muito restritivas (algumas 4G/CGNAT), a
   conexão direta entre dois participantes pode falhar (ADR 003).
 - Acima de ~6-8 pessoas assistindo a mesma tela, o upload de quem
-  compartilha vira o gargalo — não é feito pra transmissão em massa.
+  compartilha vira o gargalo — cada espectador a mais consome mais uma
+  fatia inteira do seu upload (ADR 003). Baixar a qualidade no ícone de
+  engrenagem ajuda, mas não substitui ter upload suficiente pra sala.
 - Sem lista de salas públicas, sem conta, sem histórico entre sessões —
   de propósito, pra manter o projeto em zero custo e zero configuração
   (escopo combinado no início do projeto, ver `docs/tasks.md`).

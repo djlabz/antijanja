@@ -53,4 +53,12 @@ export interface EventosServidor {
   "compartilhar:iniciou": (id: ParticipantId) => void;
   "compartilhar:parou": (id: ParticipantId) => void;
   "webrtc:sinal": (payload: SinalPayload & { de: ParticipantId }) => void;
+  /**
+   * URL pública do túnel do Cloudflare, quando o servidor sobe com um
+   * (`npm run share` ou Docker com `TUNNEL=cloudflare`) — mandado assim que
+   * descoberto e de novo pra cada socket que conectar depois. Existe pra
+   * quem hospeda a sala mas abriu o navegador em `localhost` conseguir um
+   * link de convite que funciona pros amigos (ver docs/decisions.md, ADR 011).
+   */
+  "link:publico": (url: string) => void;
 }

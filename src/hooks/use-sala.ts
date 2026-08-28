@@ -3,6 +3,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { criarSocket, type SocketSala } from "@/lib/socket";
 import { configuracaoIce } from "@/lib/webrtc-config";
+import {
+  aplicarLimiteBitrate,
+  construirConstraintsVideo,
+} from "@/lib/qualidade-transmissao";
+import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import type {
   ChatMessage,
   Participant,
@@ -36,6 +41,7 @@ export function useSala(codigo: string, nome: string) {
   const [streamsRemotos, setStreamsRemotos] = useState<
     Record<ParticipantId, MediaStream>
   >({});
+  const [linkPublico, setLinkPublico] = useState<string | null>(null);
 
   const socketRef = useRef<SocketSala | null>(null);
   const conexoesSaida = useRef(new Map<ParticipantId, RTCPeerConnection>());
@@ -119,6 +125,7 @@ export function useSala(codigo: string, nome: string) {
       streamLocalRef.current
         .getTracks()
         .forEach((track) => pc.addTrack(track, streamLocalRef.current!));
+      await aplicarLimiteBitrate(pc, useConfigTransmissaoStore.getState().bitrateMbps);
 
       pc.onicecandidate = (evento) => {
         if (evento.candidate) {
@@ -175,6 +182,10 @@ export function useSala(codigo: string, nome: string) {
 
     socket.on("chat:mensagem", (mensagem) => {
       setMensagens((atual) => [...atual, mensagem]);
+    });
+
+    socket.on("link:publico", (url) => {
+      setLinkPublico(url);
     });
 
     socket.on("compartilhar:iniciou", (id) => {
@@ -240,8 +251,15 @@ export function useSala(codigo: string, nome: string) {
     const socket = socketRef.current;
     if (!socket) return;
 
+    const { resolucao, fps, bitrateMbps } = useConfigTransmissaoStore.getState();
+
     const stream = await navigator.mediaDevices.getDisplayMedia({
-      video: true,
+      // Limita resolução e fps ao que foi escolhido em "Qualidade da
+      // transmissão" (padrão 1080p/30fps) — sem isso o navegador captura na
+      // resolução nativa do monitor sem limite de quadros, o que sobrecarrega
+      // o encoder e derruba frames (era a causa da transmissão travando
+      // mesmo entre duas abas na mesma máquina). Ver docs/decisions.md (ADR 011).
+      video: construirConstraintsVideo(resolucao, fps),
       // Sem processamento de voz: isso é áudio de vídeo/jogo, não microfone.
       // Cancelamento de eco e supressão de ruído tratam música/efeitos como
       // "ruído" e cortam pedaços — só atrapalham aqui. Ver docs/decisions.md
@@ -254,6 +272,14 @@ export function useSala(codigo: string, nome: string) {
         autoGainControl: false,
       },
     });
+
+    const trilhaVideo = stream.getVideoTracks()[0];
+    if (trilhaVideo) {
+      // Prioriza fluidez (fps estável) sobre nitidez por quadro — o pedido
+      // era "parar de travar", não 4K nítido parado no tempo.
+      trilhaVideo.contentHint = "motion";
+    }
+
     streamLocalRef.current = stream;
     setStreamLocal(stream);
     setEstouCompartilhando(true);
@@ -265,7 +291,7 @@ export function useSala(codigo: string, nome: string) {
 
     // Se a pessoa parar pelo controle nativo do navegador ("Parar
     // compartilhamento"), a track termina sozinha — detecta isso aqui.
-    stream.getVideoTracks()[0]?.addEventListener("ended", pararCompartilhamento);
+    trilhaVideo?.addEventListener("ended", pararCompartilhamento);
 
     socket.emit("compartilhar:iniciar");
     for (const participante of participantesRef.current) {
@@ -273,6 +299,7 @@ export function useSala(codigo: string, nome: string) {
       const pc = new RTCPeerConnection(configuracaoIce);
       conexoesSaida.current.set(participante.id, pc);
       stream.getTracks().forEach((track) => pc.addTrack(track, stream));
+      await aplicarLimiteBitrate(pc, bitrateMbps);
       pc.onicecandidate = (evento) => {
         if (evento.candidate) {
           socket.emit("webrtc:sinal", {
@@ -288,6 +315,27 @@ export function useSala(codigo: string, nome: string) {
     }
   }, [pararCompartilhamento]);
 
+  /**
+   * Reaplica a qualidade escolhida sem precisar parar e começar de novo o
+   * compartilhamento — chamada sempre que a pessoa muda algo no painel de
+   * "Qualidade da transmissão" enquanto já está compartilhando.
+   */
+  const atualizarQualidadeAoVivo = useCallback(async () => {
+    const { resolucao, fps, bitrateMbps } = useConfigTransmissaoStore.getState();
+    const trilhaVideo = streamLocalRef.current?.getVideoTracks()[0];
+    if (trilhaVideo) {
+      try {
+        await trilhaVideo.applyConstraints(construirConstraintsVideo(resolucao, fps));
+      } catch {
+        // Nem toda fonte de captura aceita mudar resolução/fps em tempo
+        // real — sem problema, vale a partir do próximo compartilhamento.
+      }
+    }
+    for (const pc of conexoesSaida.current.values()) {
+      await aplicarLimiteBitrate(pc, bitrateMbps);
+    }
+  }, []);
+
   return {
     status,
     erro,
@@ -297,8 +345,10 @@ export function useSala(codigo: string, nome: string) {
     estouCompartilhando,
     streamLocal,
     streamsRemotos,
+    linkPublico,
     enviarMensagem,
     iniciarCompartilhamento,
     pararCompartilhamento,
+    atualizarQualidadeAoVivo,
   };
 }

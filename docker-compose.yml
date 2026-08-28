@@ -1,28 +1,25 @@
 services:
-  # O app em si — Next.js + Socket.IO (server.ts). Acessível em
-  # http://localhost:3000 pra quem estiver na mesma rede.
+  # O app (Next.js + Socket.IO) e o túnel público do Cloudflare rodam no
+  # mesmo processo (`server.ts` sobe o `cloudflared` sozinho quando
+  # TUNNEL=cloudflare — ver docs/decisions.md, ADR 011) — não tem mais um
+  # serviço `tunnel` separado (existia até uma versão anterior deste
+  # arquivo). Isso também resolve o link de convite mostrar `localhost`
+  # mesmo rodando em Docker: o app avisa a própria URL pública pra quem
+  # entrar, não importa por qual endereço o navegador de quem hospeda abriu
+  # a página.
+  #
+  # O link público aparece nos logs, algo como:
+  #   https://palavras-aleatorias.trycloudflare.com
+  # Pra ver sem acompanhar ao vivo: `docker compose logs app | grep trycloudflare`.
+  # Muda toda vez que a stack sobe — assim que o "quick tunnel" funciona,
+  # não precisa de configuração nem conta na Cloudflare.
+  #
+  # Não quer expor pra internet, só usar na rede local? Comente ou apague a
+  # linha `TUNNEL: cloudflare` abaixo antes de subir.
   app:
     build: .
     ports:
       - "3000:3000"
-    restart: unless-stopped
-
-  # Túnel gratuito da Cloudflare (sem conta, sem cartão — "quick tunnel",
-  # ver docs/decisions.md ADR 005) pra quem estiver FORA da rede conseguir
-  # entrar. Fala com o serviço "app" pelo nome, dentro da rede do Compose —
-  # não precisa nem que a porta 3000 esteja publicada pro host.
-  #
-  # O link público aparece nos logs deste serviço, algo como:
-  #   https://palavras-aleatorias.trycloudflare.com
-  # Pra ver: `docker compose logs -f tunnel` (Ctrl+C só fecha o log, não o
-  # túnel). Muda toda vez que a stack sobe — é assim que o "quick tunnel"
-  # funciona, não precisa de configuração.
-  #
-  # Não quer expor pra internet, só usar na rede local? Rode só o app:
-  #   docker compose up app
-  tunnel:
-    image: cloudflare/cloudflared:latest
-    command: tunnel --no-autoupdate --url http://app:3000
-    depends_on:
-      - app
+    environment:
+      TUNNEL: cloudflare
     restart: unless-stopped

@@ -13,6 +13,12 @@
       tela inteira) — ADR 008.
 - [x] `docker compose up` — app + túnel Cloudflare num comando só, pra quem
       clonar o repositório sem precisar instalar Node (ADR 010).
+- [x] Painel de qualidade de transmissão (resolução/fps/bitrate), padrão
+      1080p/30fps/4 Mbps — corrige travamento por captura sem limite (ADR 011).
+- [x] Link de "Compartilhar sala" já vem com a URL pública do túnel mesmo
+      quando quem hospeda está em `localhost` (ADR 011).
+- [x] Corrigido bug crítico: `Dialog`/`Popover` ficavam presos na tela depois
+      de fechados (ADR 012).
 
 ## Próximos passos possíveis (não iniciados)
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o
@@ -22,3 +28,5 @@
 - [ ] Áudio/webcam além da tela.
 - [ ] Named Tunnel da Cloudflare com subdomínio fixo (evita ter que reenviar
       o link a cada `npm run share`) — precisa de conta gratuita na Cloudflare.
+- [ ] Investigar a causa raiz do bug do ADR 012 do lado da biblioteca
+      (`@base-ui/react`/`tw-animate-css`) — hoje contornado, não corrigido na origem.

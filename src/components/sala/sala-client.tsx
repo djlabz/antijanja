@@ -15,6 +15,7 @@ import { VideoTile } from "./video-tile";
 import { ListaParticipantes } from "./lista-participantes";
 import { Chat } from "./chat";
 import { CompartilharSalaDialog } from "./compartilhar-sala-dialog";
+import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 
 interface SalaClientProps {
   codigo: string;
@@ -41,9 +42,11 @@ export function SalaClient({ codigo }: SalaClientProps) {
     estouCompartilhando,
     streamLocal,
     streamsRemotos,
+    linkPublico,
     enviarMensagem,
     iniciarCompartilhamento,
     pararCompartilhamento,
+    atualizarQualidadeAoVivo,
   } = useSala(codigo, nome);
 
   if (!nome) return null;
@@ -113,7 +116,11 @@ export function SalaClient({ codigo }: SalaClientProps) {
           </div>
         )}
 
-        <CompartilharSalaDialog codigo={codigo} />
+        <ConfigTransmissaoPopover
+          aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
+        />
+
+        <CompartilharSalaDialog codigo={codigo} linkPublico={linkPublico} />
 
         <Button
           variant="ghost"

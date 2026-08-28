@@ -86,3 +86,43 @@
   (`server.ts` roda via `tsx` também em `npm run start`/produção, não só em
   dev), independente de Docker.
 - Commit e `git push -u origin main` feitos a pedido explícito do usuário.
+
+## 2026-08-27 - Qualidade de transmissão, link público automático, bug crítico corrigido
+- Usuário reportou transmissão travando/com qualidade ruim mesmo testando
+  localmente entre duas abas — sinal de gargalo de CPU/encoder por falta de
+  limite na captura, não de rede. Pediu um painel de qualidade
+  (resolução/fps/bitrate) igual ao de apps concorrentes, padrão 1080p/30fps/
+  4 Mbps.
+- Também reportou que o link do "Compartilhar sala" vinha com `localhost`
+  rodando `npm run share` — porque quem hospeda abre `localhost` no próprio
+  navegador, e o túnel do Cloudflare rodava num processo separado
+  (`concurrently`) que o app não tinha como enxergar a URL gerada.
+- Implementado (ADR 011): `src/lib/qualidade-transmissao.ts` (presets +
+  `construirConstraintsVideo`/`aplicarLimiteBitrate`) e
+  `useConfigTransmissaoStore` (localStorage). Painel novo
+  `ConfigTransmissaoPopover` (ícone de engrenagem no topo). `server.ts`
+  passou a subir o `cloudflared` ele mesmo via `child_process.spawn` (só
+  quando `TUNNEL=cloudflare`), ler a URL pública da própria saída do
+  processo e avisar todo mundo conectado (evento `link:publico`) — o
+  `CompartilharSalaDialog` prefere isso à origem do navegador. `npm run
+  share` simplificado pra só setar essa env var (removido `concurrently` e
+  o script `tunnel` separado). O mesmo mecanismo resolveu o problema
+  idêntico no Docker de graça — `docker-compose.yml` deixou de precisar de
+  um serviço `tunnel` separado (só `app`, com `TUNNEL: cloudflare`).
+- **Bug crítico achado e corrigido durante o teste, não pedido pelo
+  usuário** (ADR 012): fechar o `Dialog`/`Popover` do Shadcn (base em
+  `@base-ui/react`) deixava o conteúdo (e, no caso do Dialog, o overlay de
+  tela cheia) preso visível na tela, travando qualquer clique no resto do
+  app — mesmo com o estado interno (`data-closed`) correto. Reproduzido de
+  forma consistente e sistemática (não era instabilidade do ambiente de
+  teste). Corrigido tornando os dois componentes controlados
+  (`open`/`onOpenChange` com `useState` próprio) e desmontando o conteúdo
+  condicionalmente em vez de confiar na animação de saída da biblioteca.
+- Testado de ponta a ponta neste ambiente: `npm run share` de verdade,
+  túnel subindo, evento `link:publico` recebido por um cliente Node
+  standalone e por uma aba real em `localhost`, diálogo mostrando a URL
+  pública correta, painel de qualidade abrindo/aplicando/persistindo em
+  `localStorage`, e o bug do Dialog/Popover reproduzido e depois confirmado
+  corrigido. Não testado (não dá pra automatizar): a qualidade de vídeo
+  em si numa transmissão real — `getDisplayMedia` exige um seletor nativo
+  do SO que não responde a automação.
