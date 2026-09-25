@@ -38,8 +38,17 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
   function alternarTelaCheia() {
     if (document.fullscreenElement) {
       document.exitFullscreen().catch(() => {});
+      return;
+    }
+    const container = containerRef.current;
+    const video = videoRef.current as
+      | (HTMLVideoElement & { webkitEnterFullscreen?: () => void })
+      | null;
+    if (container?.requestFullscreen) {
+      container.requestFullscreen().catch(() => {});
     } else {
-      containerRef.current?.requestFullscreen().catch(() => {});
+      // iPhone/iOS Safari só deixa colocar o próprio <video> em tela cheia.
+      video?.webkitEnterFullscreen?.();
     }
   }
 
@@ -81,7 +90,7 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
             <button
               type="button"
               onClick={alternarTelaCheia}
-              className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
+              className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [@media(hover:none)]:opacity-100 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
             />
           }
         >
