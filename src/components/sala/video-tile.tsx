@@ -28,6 +28,18 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
   }, [stream]);
 
   useEffect(() => {
+    // Celular pausa o <video> quando o app vai pro segundo plano e o
+    // `autoPlay` não retoma sozinho na volta.
+    function retomar() {
+      if (document.visibilityState === "visible") {
+        videoRef.current?.play().catch(() => {});
+      }
+    }
+    document.addEventListener("visibilitychange", retomar);
+    return () => document.removeEventListener("visibilitychange", retomar);
+  }, []);
+
+  useEffect(() => {
     function aoMudarTelaCheia() {
       setEmTelaCheia(document.fullscreenElement === containerRef.current);
     }

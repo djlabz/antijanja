@@ -155,24 +155,76 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       socket.emit("webrtc:sinal", { para: paraId, tipo: "offer", dados: offer });
     }
 
-    socket.emit("sala:entrar", { codigo, nome }, (resposta) => {
-      if (!resposta.ok) {
-        setErro(resposta.erro);
-        setStatus("erro");
-        return;
-      }
-      euIdRef.current = resposta.euId;
-      setEuId(resposta.euId);
-      setMeuNome(resposta.nome); // pode diferir de `nome` (convidado: veio vazio, o servidor decidiu).
-      const todos = [
-        ...resposta.participantes,
-        { id: resposta.euId, nome: resposta.nome, compartilhando: false },
-      ];
-      participantesRef.current = todos;
-      setParticipantes(todos);
-      setFonteVideo(resposta.fonteVideo);
-      setStatus("conectado");
+    // Nome que vale numa reentrada: o que o servidor já nos deu (convidado
+    // vem com "" e o servidor sorteia "Convidado N") — senão o convidado
+    // trocaria de nome a cada reconexão.
+    let nomeEfetivo = nome;
+
+    function entrar() {
+      // Cada `connect` (o primeiro e todo reconectar) é um socket novo do
+      // ponto de vista do servidor: ele já nos removeu da sala e tratou como
+      // saída, e as conexões WebRTC antigas morreram junto. Sem reentrar, o
+      // celular que bloqueia a tela/troca de rede volta "conectado" mas fora
+      // da sala, com o vídeo congelado (ver ADR 020).
+      conexoesEntrada.current.forEach((pc) => pc.close());
+      conexoesEntrada.current.clear();
+      conexoesSaida.current.forEach((pc) => pc.close());
+      conexoesSaida.current.clear();
+      setStreamsRemotos({});
+
+      socket.emit("sala:entrar", { codigo, nome: nomeEfetivo }, (resposta) => {
+        if (!resposta.ok) {
+          setErro(resposta.erro);
+          setStatus("erro");
+          return;
+        }
+        nomeEfetivo = resposta.nome;
+        euIdRef.current = resposta.euId;
+        setEuId(resposta.euId);
+        setMeuNome(resposta.nome); // pode diferir de `nome` (convidado: veio vazio, o servidor decidiu).
+        const estavaCompartilhando = streamLocalRef.current !== null;
+        const todos = [
+          ...resposta.participantes,
+          {
+            id: resposta.euId,
+            nome: resposta.nome,
+            compartilhando: estavaCompartilhando,
+          },
+        ];
+        participantesRef.current = todos;
+        setParticipantes(todos);
+        setFonteVideo(resposta.fonteVideo);
+        setStatus("conectado");
+
+        // Reconectei no meio de um compartilhamento: anuncia de novo e
+        // reabre uma conexão de saída pra cada pessoa que está na sala.
+        if (estavaCompartilhando) {
+          socket.emit("compartilhar:iniciar");
+          for (const participante of resposta.participantes) {
+            ofertarParaNovoParticipante(participante.id).catch(() =>
+              setErro("Não foi possível retomar o compartilhamento.")
+            );
+          }
+        }
+      });
+    }
+
+    // `connect` dispara na primeira conexão e em toda reconexão automática.
+    socket.on("connect", entrar);
+
+    // Se o servidor derrubou a gente de propósito o Socket.IO não reconecta
+    // sozinho; e ao voltar pro app (celular) força a tentativa na hora em vez
+    // de esperar o próximo backoff.
+    socket.on("disconnect", (motivo) => {
+      setStatus("conectando");
+      if (motivo === "io server disconnect") socket.connect();
     });
+    function aoVoltarAoApp() {
+      if (document.visibilityState === "visible" && !socket.connected) {
+        socket.connect();
+      }
+    }
+    document.addEventListener("visibilitychange", aoVoltarAoApp);
 
     socket.on("participante:entrou", (participante) => {
       setParticipantes((atual) => {
@@ -250,6 +302,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     });
 
     return () => {
+      document.removeEventListener("visibilitychange", aoVoltarAoApp);
       socket.removeAllListeners();
       conexoesSaida.current.forEach((pc) => pc.close());
       conexoesEntrada.current.forEach((pc) => pc.close());
