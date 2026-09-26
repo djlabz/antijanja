@@ -230,3 +230,33 @@
   projeto pode gerar exatamente esse tipo de susto — mudanças aparecendo no
   disco sem uma sessão saber da outra. Não é proibido, mas vale checar
   `git status`/`git log` com frequência quando isso acontecer.
+
+## 2026-09-25/26 - Celular, desktop, visual arredondado, reações
+- Sessão longa guiada por uso real do usuário (celular + PC). Cada bloco
+  virou um commit e, quando havia decisão, um ADR (020 a 024).
+- **Reconexão (ADR 020)**: o congelamento no celular era o `useSala`
+  emitir `sala:entrar` uma só vez; o servidor trata a queda como saída.
+  Agora entra a cada `connect`. Testado derrubando e subindo o servidor.
+- **Celular (ADR 021)**, **desktop (ADR 022)**, **avisos/reações/PiP
+  (ADR 024)**: ver os ADRs. Detalhe que custou tempo: aba do chat
+  escondida perde a posição de rolagem e o navegador dispara um evento de
+  rolagem ao reaparecer — o `Chat` ignora rolagem que vem com mudança de
+  altura (`alturaRef`).
+- **Visual arredondado (ADR 023)**: feito numa branch, aprovado pelo
+  usuário e mesclado. O tile de vídeo precisa ter a proporção real da
+  imagem, senão o canto arredondado cai num quadro preto e o vídeo parece
+  reto. `DESIGN.md` foi reescrito (Shapes, Campos, Chat, Abas).
+- **Bugs achados no caminho**: `--font-sans` apontava pra si mesma (app todo
+  em fonte serifada); a animação das estrelas usava `transform` e movia o
+  painel inteiro do estado vazio (agora anima `background-position`).
+- **Como foi testado**: navegador embutido do Claude Code, duas abas na mesma
+  sala (uma com `getDisplayMedia` trocado por um canvas, porque não há tela
+  real pra compartilhar). Fica **sem teste real**: tela cheia (o painel a
+  bloqueia — foi simulada), PiP, Wake Lock, menu de compartilhar do celular.
+- **Armadilhas do ambiente**: `preview_start` recarrega a aba principal (perde
+  o `getDisplayMedia` falso); matar o servidor à força pode corromper `.next`
+  (tudo dá 404 — apagar `.next` resolve); `.claude/launch.json` existe só
+  pra subir o servidor de teste e **não está commitado**.
+- **Pendências**: ver "Próximos passos" em `docs/tasks.md` (o principal é o
+  teste em celular de verdade).
+

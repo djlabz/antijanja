@@ -37,6 +37,9 @@ chama Sinal — era "Tela Junto" antes do redesign visual (ADR 018 em
 - `src/components/sala/escolher-nome-sala.tsx` → tela de identificação (nome ou convidado) mostrada dentro da sala quando ainda não tem nome (ADR 014).
 - `src/lib/youtube.ts` → parsing de URL do YouTube (vídeo/playlist), sem `window`/DOM — importado tanto do cliente quanto de `server.ts`, igual `socket-events.ts`.
 - `src/components/sala/youtube-player.tsx` + `adicionar-fonte-dialog.tsx` → vídeo do YouTube sincronizado pra sala inteira (ADR 015).
+- `src/hooks/use-wake-lock.ts`, `use-avisos.ts`, `use-link-sala.ts` → tela acesa, aviso no título/bipe, link da sala + copiar + compartilhar nativo.
+- `src/lib/tela-cheia.ts` → entrar/sair da tela cheia (botão e atalho `F` usam a mesma função).
+- `src/components/sala/video-tile.tsx` → vídeo com volume, estatísticas, PiP, destaque, chat sobreposto e controles que somem em tela cheia. Recebe atalhos como eventos DOM `sinal:*` (a sala não mexe no estado dele).
 - `docs/features/` → especificação de cada funcionalidade (`NNN-nome.md`, prefixo sequencial, nunca reordene os já existentes).
 - `docs/decisions.md` → ADRs — por que cada decisão de arquitetura foi tomada.
 - `docs/tasks.md` → backlog.

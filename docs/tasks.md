@@ -43,7 +43,38 @@
       derrubava resolução pra manter fps sob aperto de banda. Agora derruba
       fps, mantém resolução (ADR 019).
 
+- [x] Reconexão automática: quem cai (celular bloqueando a tela, rede
+      oscilando) reentra na sala e retoma o vídeo sozinho (ADR 020).
+- [x] Celular: vídeo fixo no topo, abas Chat/Participantes, tela cheia em
+      paisagem + duplo toque, tela sempre acesa (Wake Lock), faixa
+      "Reconectando…" (ADR 021).
+- [x] Chat: horário em cada mensagem, balões, rolagem que não puxa a
+      página, teclado do celular não fecha a cada envio, contador de não lidas.
+- [x] Desktop: modo cinema, destaque de tela, volume/mudo por transmissão,
+      estatísticas de recepção, chat sobreposto em tela cheia, atalhos
+      `F` `M` `C` `P` `/`, aviso no título da aba + bipe (ADR 022, 024).
+- [x] Visual arredondado (pílulas, balões, avatares redondos) — experimento
+      aprovado e mesclado na `main` (ADR 023). Corrigida a fonte (Geist não
+      carregava) e a animação que movia o painel do estado vazio.
+- [x] Estado vazio com convite ("Você está sozinho por aqui" + copiar link),
+      rótulos de 12px, transições e respeito a "reduzir movimento".
+- [x] Avisos "fulano entrou/saiu", reações flutuantes, Picture-in-Picture,
+      controles que somem em tela cheia, compartilhar pelo menu do celular
+      (ADR 024).
+
 ## Próximos passos possíveis (não iniciados)
+- [ ] **Testar num celular de verdade** o que só foi simulado: tela cheia em
+      paisagem, Wake Lock, PiP, menu de compartilhar nativo, teclado.
+- [ ] Servidor TURN: sem ele, quem assiste pelo 4G (NAT restritivo) pode não
+      receber o vídeo (ADR 003). Só vale se o teste real mostrar o problema.
+- [ ] Guardar as últimas ~50 mensagens do chat no servidor (em memória) pra
+      quem entra depois ou reconecta não perder o que foi dito.
+- [ ] Links clicáveis no chat.
+- [ ] Zoom com pinça no vídeo (celular).
+- [ ] Instalar como app (PWA).
+- [ ] Limpar o cabeçalho no celular (vários ícones sem texto; "Compartilhar
+      tela" não funciona na maioria dos navegadores de celular).
+- [ ] Animar a troca entre "todas as telas" e "destaque".
 - [ ] Lista de salas públicas (`/salas`) — precisa decidir se isso quebra o
       ADR 001 (nada em memória sobrevive a reinício, então "pública" só
       significa "listada pros que já sabem o endereço do servidor").
