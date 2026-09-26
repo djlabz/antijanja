@@ -175,9 +175,11 @@
 
   /* Poeira flutuando atrás do plano da frente — usado no fundo da sala e da
      home, em profundidades diferentes (ver DESIGN.md, Elevation & Depth). */
+  /* Anima só a posição do fundo (as estrelas): mexer no `transform` levava o
+     elemento inteiro junto, e o painel do estado vazio subia e descia. */
   @keyframes deriva-poeira {
-    from { transform: translateY(0); }
-    to { transform: translateY(-6%); }
+    from { background-position: 0 0; }
+    to { background-position: 0 -90px; }
   }
   .campo-poeira {
     background-image:
@@ -189,5 +191,8 @@
     background-repeat: repeat;
     background-size: 180px 180px;
     animation: deriva-poeira 40s linear infinite alternate;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .campo-poeira { animation: none; }
   }
 }
