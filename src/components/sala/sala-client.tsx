@@ -9,6 +9,7 @@ import {
   MonitorX,
   SquarePlay as YoutubeIcon,
 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Tooltip,
@@ -95,7 +96,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
   }
 
   const telas = Object.entries(streamsRemotos);
-  const nadaAtivo = !streamLocal && telas.length === 0 && !fonteVideo;
+  const totalDeTelas = telas.length + (streamLocal ? 1 : 0) + (fonteVideo ? 1 : 0);
+  const nadaAtivo = totalDeTelas === 0;
   const souControladorDoVideo =
     !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
 
@@ -217,7 +219,15 @@ export function SalaClient({ codigo }: SalaClientProps) {
               </p>
             </div>
           ) : (
-            <div className="grid h-full auto-rows-fr grid-cols-1 gap-3 sm:grid-cols-2">
+            <div
+              className={cn(
+                "grid h-full auto-rows-fr grid-cols-1 gap-3",
+                // Com uma única tela ela ocupa a largura toda; com 2+ divide
+                // em duas colunas. Sempre 2 colunas deixava uma coluna vazia
+                // e a tela única pela metade.
+                totalDeTelas > 1 && "sm:grid-cols-2"
+              )}
+            >
               {fonteVideo && (
                 <YoutubePlayer
                   key={fonteVideo.youtubeId}
