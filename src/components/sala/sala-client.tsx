@@ -241,7 +241,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
           )}
         </main>
 
-        <aside className="order-3 flex min-h-[40vh] flex-col md:min-h-0">
+        {/* Altura fixa no celular: sem ela o chat cresce com as mensagens, a
+            lista nunca rola por dentro e o campo de digitar some pra baixo. */}
+        <aside className="order-3 flex h-[60dvh] flex-col md:h-auto md:min-h-0">
           <h2 className="mb-2 border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase">
             Chat
           </h2>
