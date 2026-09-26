@@ -27,9 +27,15 @@ typography:
     fontWeight: 600
     lineHeight: 1.1
     letterSpacing: "0.04em"
+  headline:
+    fontFamily: "Geist, ui-sans-serif, system-ui, sans-serif"
+    fontSize: "1.25rem"
+    fontWeight: 600
+    lineHeight: 1.3
+    letterSpacing: "-0.01em"
   label:
     fontFamily: "Pixelify Sans, ui-monospace, monospace"
-    fontSize: "11px"
+    fontSize: "0.75rem"
     fontWeight: 500
     letterSpacing: "0.03em"
   body:
@@ -185,9 +191,11 @@ também cobre o próprio nome do produto e os rótulos de seção.
 ### Hierarchy
 - **Wordmark** (Pixelify Sans 600, 2.25rem): só o "SINAL" da home. Não se
   repete em tamanho grande em nenhum outro lugar do produto.
-- **Label** (Pixelify Sans 500, 11px, uppercase): rótulos de seção
-  ("PARTICIPANTES · 3", "CHAT") — reduzido de 12px pra 11px porque a face
-  bitmap lê mais "pesada" que a sans no mesmo tamanho nominal.
+- **Headline** (Geist 600, 1.25rem): título do estado vazio ("Você está
+  sozinho por aqui"). Na sans, não na bitmap — é frase, não rótulo.
+- **Label** (Pixelify Sans 500, 0.75rem, uppercase, `foreground/75`):
+  rótulos de seção ("PARTICIPANTES · 3", "CHAT"). Já foi 11px; subiu pra
+  12px (e ganhou contraste) porque no monitor grande ficava pequeno e fraco.
 - **Body** (Geist 400, 0.875rem): texto corrido — nunca na face bitmap, por
   legibilidade em português acentuado em tamanho pequeno.
 - **Mono** (Geist Mono 400, 0.75rem): código da sala e os prompts `nome>`/

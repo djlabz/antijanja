@@ -34,7 +34,7 @@ export function ListaParticipantes({ participantes, euId }: ListaParticipantesPr
         >
           <span
             aria-hidden
-            className="flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-black"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-xs font-bold text-black"
             style={{ backgroundColor: corDoParticipante(p.id) }}
           >
             {p.nome.slice(0, 2).toUpperCase()}

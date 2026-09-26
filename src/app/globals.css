@@ -132,6 +132,15 @@
     background: oklch(0.78 0.15 70 / 30%);
     color: var(--foreground);
   }
+  /* Quem pediu "reduzir movimento" no sistema não vê transições nem
+     animações (as estrelas da poeira têm regra própria abaixo). */
+  @media (prefers-reduced-motion: reduce) {
+    *, ::before, ::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;

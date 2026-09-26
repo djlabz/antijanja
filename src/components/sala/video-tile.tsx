@@ -298,7 +298,7 @@ export function VideoTile({
             aria-expanded={chatAberto}
           >
             <MessageSquare className="size-4" />
-            <span className="font-heading text-[11px] tracking-wide uppercase">Chat</span>
+            <span className="font-heading text-xs tracking-wide uppercase">Chat</span>
           </button>
         )}
       </div>
@@ -308,7 +308,7 @@ export function VideoTile({
           <button
             type="button"
             onClick={() => setChatAberto(false)}
-            className="mb-2 flex items-center justify-between font-heading text-[11px] tracking-wide text-muted-foreground uppercase hover:text-foreground"
+            className="mb-2 flex items-center justify-between font-heading text-xs tracking-wide text-muted-foreground uppercase hover:text-foreground"
             aria-label="Fechar chat"
           >
             Chat

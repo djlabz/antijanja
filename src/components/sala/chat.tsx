@@ -99,9 +99,12 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
             return (
               <div
                 key={i}
-                className={cn("flex flex-col gap-0.5", minha ? "items-end" : "items-start")}
+                className={cn(
+                  "flex animate-in flex-col gap-0.5 fade-in-0 slide-in-from-bottom-1 duration-200",
+                  minha ? "items-end" : "items-start"
+                )}
               >
-                <span className="px-2 text-[11px] text-muted-foreground">
+                <span className="px-2 text-xs text-muted-foreground">
                   {!minha && (
                     <span className="font-semibold" style={{ color: corDoParticipante(m.de) }}>
                       {m.nome}{" "}

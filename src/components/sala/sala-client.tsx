@@ -35,6 +35,7 @@ import { ListaParticipantes } from "./lista-participantes";
 import { Chat } from "./chat";
 import { CompartilharSalaDialog } from "./compartilhar-sala-dialog";
 import { CopiarLinkButton } from "./copiar-link-button";
+import { LinkConvite } from "./link-convite";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
@@ -240,6 +241,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const reconectando = status === "conectando" && euId !== null;
   const totalDeTelas = telas.length + (streamLocal ? 1 : 0) + (fonteVideo ? 1 : 0);
   const nadaAtivo = totalDeTelas === 0;
+  const sozinho = participantes.length <= 1;
   async function compartilhar() {
     try {
       await iniciarCompartilhamento();
@@ -353,39 +355,50 @@ export function SalaClient({ codigo }: SalaClientProps) {
           desktop volta a ser a grade de três colunas. */}
       <div
         className={cn(
-          "flex min-h-0 flex-1 flex-col gap-2 p-3 md:grid md:gap-4 md:p-4",
-          cinema ? "md:grid-cols-[1fr_280px]" : "md:grid-cols-[200px_1fr_280px]"
+          "flex min-h-0 flex-1 flex-col gap-2 p-3 md:grid md:gap-4 md:p-4 md:transition-[grid-template-columns] md:duration-300 md:ease-out",
+          cinema ? "md:grid-cols-[0px_1fr_280px]" : "md:grid-cols-[200px_1fr_280px]"
         )}
       >
         <main
           className={cn(
-            "order-1 shrink-0 md:order-2 md:min-h-0 md:shrink",
+            "order-1 shrink-0 transition-[margin] duration-300 ease-out md:order-2 md:min-h-0 md:shrink",
+            cinema && "md:-ml-4",
             !nadaAtivo && "max-h-[50dvh] overflow-y-auto md:max-h-none md:overflow-visible"
           )}
         >
           {nadaAtivo ? (
-            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-4 rounded-3xl bg-white/[0.03] p-6 text-center md:p-10">
-              <p className="text-sm text-muted-foreground">
-                Ninguém está compartilhando a tela ainda.
-              </p>
+            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-6 rounded-3xl bg-white/[0.03] p-6 text-center md:p-10">
+              <div className="flex flex-col items-center gap-2">
+                <h2 className="text-xl font-semibold tracking-tight text-foreground">
+                  {sozinho ? "Você está sozinho por aqui" : "Ninguém está transmitindo"}
+                </h2>
+                <p className="max-w-sm text-sm text-muted-foreground">
+                  {sozinho
+                    ? "Copie o link e mande pros amigos entrarem na sala."
+                    : "Compartilhe sua tela ou coloque um vídeo pra começar."}
+                </p>
+              </div>
+
+              {sozinho && <LinkConvite linkPublico={linkPublico} />}
+
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button onClick={compartilhar} className="gap-1.5">
+                <Button size="lg" onClick={compartilhar}>
                   <MonitorUp className="size-4" />
                   Compartilhar tela
                 </Button>
                 <AdicionarFonteDialog
                   aoAdicionar={adicionarFonteVideo}
                   trigger={
-                    <Button variant="outline" className="gap-1.5">
+                    <Button size="lg" variant="outline">
                       <YoutubeIcon className="size-4" />
                       Adicionar vídeo
                     </Button>
                   }
                 />
               </div>
-              <p className="hidden max-w-sm text-xs text-muted-foreground md:block">
-                Pra levar o áudio de um vídeo (YouTube, por exemplo) sem
-                pegar o áudio do Discord, escolha compartilhar{" "}
+              <p className="hidden max-w-sm text-xs text-muted-foreground/80 md:block">
+                Pra levar o áudio de um vídeo (YouTube, por exemplo) sem pegar
+                o áudio do Discord, escolha compartilhar{" "}
                 <span className="text-foreground">uma aba do navegador</span>,
                 não a tela toda, quando o navegador perguntar.
               </p>
@@ -414,7 +427,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
                     key={item.id}
                     data-destacado={eDestaque ? "" : undefined}
                     className={cn(
-                      "group/envoltorio relative min-h-0 md:flex md:items-center md:justify-center md:[container-type:size]",
+                      "group/envoltorio relative min-h-0 animate-in fade-in-0 zoom-in-95 duration-300 md:flex md:items-center md:justify-center md:[container-type:size]",
                       destaque &&
                         (eDestaque ? "md:col-span-4 md:row-start-1" : "md:row-start-2")
                     )}
@@ -457,15 +470,15 @@ export function SalaClient({ codigo }: SalaClientProps) {
               aria-selected={aba === id}
               onClick={() => trocarAba(id)}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-heading text-[11px] tracking-wide uppercase transition-colors",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-heading text-xs tracking-wide uppercase transition-colors",
                 aba === id
                   ? "bg-white/10 text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                  : "text-foreground/65 hover:text-foreground"
               )}
             >
               {rotulo}
               {contagem > 0 && (
-                <span className="min-w-4 rounded-full bg-primary px-1.5 text-center text-[11px] leading-4 font-bold text-primary-foreground">
+                <span className="min-w-4 rounded-full bg-primary px-1.5 text-center text-xs leading-4 font-bold text-primary-foreground">
                   {contagem > 99 ? "99+" : contagem}
                 </span>
               )}
@@ -477,10 +490,11 @@ export function SalaClient({ codigo }: SalaClientProps) {
           className={cn(
             "order-3 min-h-0 flex-1 overflow-y-auto rounded-3xl bg-white/[0.035] p-3 md:order-1 md:block md:flex-none md:overflow-visible md:p-4",
             aba !== "participantes" && "hidden",
-            cinema && "md:hidden"
+            "transition-opacity duration-300 md:overflow-hidden",
+            cinema && "md:pointer-events-none md:opacity-0"
           )}
         >
-          <h2 className="mb-3 hidden px-1 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
+          <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
             Participantes · {participantes.length}
           </h2>
           <ListaParticipantes participantes={participantes} euId={euId} />
@@ -492,7 +506,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
             aba === "chat" ? "flex" : "hidden"
           )}
         >
-          <h2 className="mb-3 hidden px-1 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
+          <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
             Chat
           </h2>
           <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />
