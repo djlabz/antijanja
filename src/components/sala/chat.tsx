@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { SendHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { corDoParticipante } from "@/lib/cor-participante";
 import type { ChatMessage, ParticipantId } from "@/lib/socket-events";
 
@@ -93,27 +94,40 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
           {mensagens.length === 0 && (
             <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
           )}
-          {mensagens.map((m, i) => (
-            <p key={i} className="text-sm leading-snug break-words">
-              <span
-                className="font-semibold"
-                style={{ color: m.de === euId ? undefined : corDoParticipante(m.de) }}
+          {mensagens.map((m, i) => {
+            const minha = m.de === euId;
+            return (
+              <div
+                key={i}
+                className={cn("flex flex-col gap-0.5", minha ? "items-end" : "items-start")}
               >
-                {m.de === euId ? "Você" : m.nome}
-              </span>{" "}
-              <time
-                dateTime={new Date(m.em).toISOString()}
-                className="text-[11px] text-muted-foreground tabular-nums"
-              >
-                {formatarHorario(m.em)}
-              </time>
-              <span className="text-foreground/90">: {m.texto}</span>
-            </p>
-          ))}
+                <span className="px-2 text-[11px] text-muted-foreground">
+                  {!minha && (
+                    <span className="font-semibold" style={{ color: corDoParticipante(m.de) }}>
+                      {m.nome}{" "}
+                    </span>
+                  )}
+                  <time dateTime={new Date(m.em).toISOString()} className="tabular-nums">
+                    {formatarHorario(m.em)}
+                  </time>
+                </span>
+                <p
+                  className={cn(
+                    "max-w-[85%] rounded-2xl px-3 py-1.5 text-sm leading-snug break-words",
+                    minha
+                      ? "rounded-br-md bg-primary/15 text-foreground"
+                      : "rounded-bl-md bg-white/[0.06] text-foreground/90"
+                  )}
+                >
+                  {m.texto}
+                </p>
+              </div>
+            );
+          })}
         </div>
       </div>
       <form
-        className="flex shrink-0 items-end gap-2"
+        className="flex shrink-0 items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           enviar();
@@ -130,8 +144,7 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
         />
         <Button
           type="submit"
-          size="icon"
-          variant="ghost"
+          size="icon-lg"
           aria-label="Enviar mensagem"
           // Tocar no botão tira o foco do campo e fecha o teclado do
           // celular a cada mensagem; segurar o foco deixa mandar várias.

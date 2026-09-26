@@ -26,7 +26,7 @@ export function ListaParticipantes({ participantes, euId }: ListaParticipantesPr
         <li
           key={p.id}
           className={cn(
-            "flex items-center gap-2.5 py-1 transition-opacity",
+            "flex items-center gap-2.5 rounded-full px-2 py-1.5 transition-colors hover:bg-white/[0.04]",
             // Profundidade = brilho: quem compartilha fica cheio (frente);
             // quem só assiste perde opacidade (atrás, na penumbra).
             p.compartilhando ? "opacity-100" : "opacity-55"
@@ -34,7 +34,7 @@ export function ListaParticipantes({ participantes, euId }: ListaParticipantesPr
         >
           <span
             aria-hidden
-            className="flex size-4 shrink-0 items-center justify-center text-[9px] font-bold text-black"
+            className="flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-black"
             style={{ backgroundColor: corDoParticipante(p.id) }}
           >
             {p.nome.slice(0, 2).toUpperCase()}

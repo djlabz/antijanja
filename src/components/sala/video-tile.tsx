@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { MessageSquare, Maximize, Minimize, Volume2, VolumeX, X } from "lucide-react";
+import { LayoutGrid, MessageSquare, Maximize, Minimize, Pin, Volume2, VolumeX, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { alternarTelaCheia } from "@/lib/tela-cheia";
 import type { EstatisticasVideo } from "@/hooks/use-sala";
@@ -23,6 +23,8 @@ interface VideoTileProps {
   participanteId?: ParticipantId;
   /** Chat mostrado sobreposto ao vídeo enquanto está em tela cheia. */
   chat?: ReactNode;
+  /** Botão de destacar/ver todas (só existe com 2+ telas). */
+  destaque?: { ativo: boolean; alternar: () => void };
   className?: string;
 }
 
@@ -49,6 +51,7 @@ export function VideoTile({
   estatisticasDe,
   participanteId,
   chat,
+  destaque,
   className,
 }: VideoTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -58,11 +61,26 @@ export function VideoTile({
   const [silenciado, setSilenciado] = useState(false);
   const [estatisticas, setEstatisticas] = useState<string | null>(null);
   const [chatAberto, setChatAberto] = useState(false);
+  // Proporção real do vídeo (16:9 até chegar o primeiro quadro): o tile se
+  // ajusta a ela pra o canto arredondado ficar na imagem, e não num quadro
+  // preto maior em volta dela.
+  const [proporcao, setProporcao] = useState(16 / 9);
 
   useEffect(() => {
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream;
+    const video = videoRef.current;
+    if (!video) return;
+    video.srcObject = stream;
+    function aoMedir() {
+      if (video && video.videoWidth && video.videoHeight) {
+        setProporcao(video.videoWidth / video.videoHeight);
+      }
     }
+    video.addEventListener("loadedmetadata", aoMedir);
+    video.addEventListener("resize", aoMedir);
+    return () => {
+      video.removeEventListener("loadedmetadata", aoMedir);
+      video.removeEventListener("resize", aoMedir);
+    };
   }, [stream]);
 
   // Volume/mudo são só do meu lado (não afetam ninguém) e valem por tela.
@@ -149,6 +167,7 @@ export function VideoTile({
       ref={containerRef}
       data-video-tile
       data-remoto={tocaSom ? "" : undefined}
+      style={{ "--proporcao": proporcao } as React.CSSProperties}
       // Duplo toque/clique no vídeo alterna tela cheia — o botão do canto é
       // pequeno pra acertar com o dedo. `touch-manipulation` tira o zoom de
       // duplo toque do navegador, que roubaria o gesto.
@@ -158,12 +177,15 @@ export function VideoTile({
         }
       }}
       className={cn(
-        "touch-manipulation aspect-video md:aspect-auto",
-        // Sem borda, sem canto arredondado: o plano da frente é o vídeo em
-        // si, não uma moldura ao redor dele (ver DESIGN.md). A separação do
-        // vazio ao redor vem só da própria imagem contra o preto puro.
-        "group relative overflow-hidden bg-black",
-        emTelaCheia && "flex items-center justify-center",
+        // Celular: 16:9 na largura toda. Desktop: a maior caixa com a
+        // proporção do vídeo que cabe na célula (`cqw`/`cqh` = tamanho do
+        // envoltório em `sala-client`), centralizada por ele.
+        "touch-manipulation aspect-video md:aspect-(--proporcao) md:w-[min(100cqw,calc(100cqh*var(--proporcao)))]",
+        // Canto arredondado sem borda: a separação do vazio ao redor vem da
+        // própria imagem contra o preto (ver DESIGN.md). Em tela cheia o
+        // canto some, senão aparece um vão preto nos quatro cantos.
+        "group relative overflow-hidden rounded-2xl bg-black",
+        emTelaCheia && "flex items-center justify-center rounded-none",
         className
       )}
     >
@@ -186,6 +208,18 @@ export function VideoTile({
         </span>
         <span className="font-heading text-xs tracking-wide text-white">{nome}</span>
       </div>
+
+      {destaque && !emTelaCheia && (
+        <button
+          type="button"
+          onClick={destaque.alternar}
+          aria-label={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
+          title={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
+          className="absolute top-2 right-11 hidden size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring md:flex"
+        >
+          {destaque.ativo ? <LayoutGrid className="size-4" /> : <Pin className="size-4" />}
+        </button>
+      )}
 
       <Tooltip>
         <TooltipTrigger
@@ -270,7 +304,7 @@ export function VideoTile({
       </div>
 
       {emTelaCheia && chat && chatAberto && (
-        <div className="absolute top-14 right-3 bottom-14 flex w-80 max-w-[85%] flex-col bg-popover p-3">
+        <div className="absolute top-14 right-3 bottom-14 flex w-80 max-w-[85%] flex-col rounded-2xl bg-popover p-3">
           <button
             type="button"
             onClick={() => setChatAberto(false)}

@@ -6,13 +6,11 @@ import {
   Bell,
   BellOff,
   Info,
-  LayoutGrid,
   LogOut,
   MonitorUp,
   MonitorX,
   PanelLeftClose,
   PanelLeftOpen,
-  Pin,
   SquarePlay as YoutubeIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -195,11 +193,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const chatSobreposto = (
     <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />
   );
-  const itens: { id: string; node: ReactNode }[] = [];
+  type Destaque = { ativo: boolean; alternar: () => void } | undefined;
+  const itens: { id: string; render: (d: Destaque) => ReactNode }[] = [];
   if (fonteVideo) {
     itens.push({
       id: "youtube",
-      node: (
+      render: (d) => (
         <YoutubePlayer
           key={fonteVideo.youtubeId}
           youtubeId={fonteVideo.youtubeId}
@@ -208,6 +207,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           ultimoComando={ultimoComandoVideo}
           onComando={enviarComandoVideo}
           onRemover={souControladorDoVideo ? removerFonteVideo : undefined}
+          destaque={d}
         />
       ),
     });
@@ -215,19 +215,22 @@ export function SalaClient({ codigo }: SalaClientProps) {
   if (streamLocal) {
     itens.push({
       id: "local",
-      node: <VideoTile stream={streamLocal} nome="Você" mudo chat={chatSobreposto} />,
+      render: (d) => (
+        <VideoTile stream={streamLocal} nome="Você" mudo chat={chatSobreposto} destaque={d} />
+      ),
     });
   }
   for (const [id, stream] of telas) {
     itens.push({
       id,
-      node: (
+      render: (d) => (
         <VideoTile
           stream={stream}
           nome={participantes.find((p) => p.id === id)?.nome ?? "Participante"}
           participanteId={id}
           estatisticasDe={lerEstatisticasEntrada}
           chat={chatSobreposto}
+          destaque={d}
         />
       ),
     });
@@ -337,7 +340,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
       {reconectando && (
         <div
           role="status"
-          className="flex items-center justify-center gap-2 border-b border-border/40 bg-primary/10 px-3 py-1.5 text-xs text-primary"
+          className="mx-auto mt-2 flex w-fit items-center justify-center gap-2 rounded-full bg-primary/10 px-4 py-1.5 text-xs text-primary"
         >
           <span className="size-1.5 animate-pulse rounded-full bg-primary" />
           Reconectando…
@@ -361,7 +364,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           )}
         >
           {nadaAtivo ? (
-            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-4 p-6 text-center md:p-10">
+            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-4 rounded-3xl bg-white/[0.03] p-6 text-center md:p-10">
               <p className="text-sm text-muted-foreground">
                 Ninguém está compartilhando a tela ainda.
               </p>
@@ -411,12 +414,19 @@ export function SalaClient({ codigo }: SalaClientProps) {
                     key={item.id}
                     data-destacado={eDestaque ? "" : undefined}
                     className={cn(
-                      "group/envoltorio relative min-h-0 [&>:first-child]:h-full",
+                      "group/envoltorio relative min-h-0 md:flex md:items-center md:justify-center md:[container-type:size]",
                       destaque &&
                         (eDestaque ? "md:col-span-4 md:row-start-1" : "md:row-start-2")
                     )}
                   >
-                    {item.node}
+                    {item.render(
+                      itens.length > 1
+                        ? {
+                            ativo: eDestaque,
+                            alternar: () => setDestaqueId(eDestaque ? null : item.id),
+                          }
+                        : undefined
+                    )}
                     {miniatura ? (
                       <button
                         type="button"
@@ -425,19 +435,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
                         title="Destacar esta tela"
                         className="absolute inset-0 z-10 hidden cursor-pointer hover:bg-white/5 md:block"
                       />
-                    ) : (
-                      itens.length > 1 && (
-                        <button
-                          type="button"
-                          onClick={() => setDestaqueId(eDestaque ? null : item.id)}
-                          aria-label={eDestaque ? "Ver todas as telas" : "Destacar esta tela"}
-                          title={eDestaque ? "Ver todas as telas" : "Destacar esta tela"}
-                          className="absolute top-2 right-11 z-10 hidden size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover/envoltorio:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring md:flex"
-                        >
-                          {eDestaque ? <LayoutGrid className="size-4" /> : <Pin className="size-4" />}
-                        </button>
-                      )
-                    )}
+                    ) : null}
                   </div>
                 );
               })}
@@ -445,7 +443,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           )}
         </main>
 
-        <div role="tablist" className="order-2 flex shrink-0 gap-5 border-b border-border/40 md:hidden">
+        <div role="tablist" className="order-2 flex shrink-0 gap-1 rounded-full bg-white/[0.05] p-1 md:hidden">
           {(
             [
               ["chat", "Chat", naoLidas],
@@ -459,15 +457,15 @@ export function SalaClient({ codigo }: SalaClientProps) {
               aria-selected={aba === id}
               onClick={() => trocarAba(id)}
               className={cn(
-                "-mb-px flex items-center gap-1.5 border-b-2 py-2 font-heading text-[11px] tracking-wide uppercase transition-colors",
+                "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-heading text-[11px] tracking-wide uppercase transition-colors",
                 aba === id
-                  ? "border-primary text-foreground"
-                  : "border-transparent text-muted-foreground"
+                  ? "bg-white/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {rotulo}
               {contagem > 0 && (
-                <span className="bg-primary px-1 text-[11px] leading-4 font-bold text-primary-foreground">
+                <span className="min-w-4 rounded-full bg-primary px-1.5 text-center text-[11px] leading-4 font-bold text-primary-foreground">
                   {contagem > 99 ? "99+" : contagem}
                 </span>
               )}
@@ -477,12 +475,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
 
         <aside
           className={cn(
-            "order-3 min-h-0 flex-1 overflow-y-auto md:order-1 md:block md:flex-none md:overflow-visible",
+            "order-3 min-h-0 flex-1 overflow-y-auto rounded-3xl bg-white/[0.035] p-3 md:order-1 md:block md:flex-none md:overflow-visible md:p-4",
             aba !== "participantes" && "hidden",
             cinema && "md:hidden"
           )}
         >
-          <h2 className="mb-2 hidden border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
+          <h2 className="mb-3 hidden px-1 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
             Participantes · {participantes.length}
           </h2>
           <ListaParticipantes participantes={participantes} euId={euId} />
@@ -490,11 +488,11 @@ export function SalaClient({ codigo }: SalaClientProps) {
 
         <aside
           className={cn(
-            "order-3 min-h-0 flex-1 flex-col md:order-3 md:flex md:flex-none",
+            "order-3 min-h-0 flex-1 flex-col rounded-3xl bg-white/[0.035] p-3 md:order-3 md:flex md:flex-none md:p-4",
             aba === "chat" ? "flex" : "hidden"
           )}
         >
-          <h2 className="mb-2 hidden border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
+          <h2 className="mb-3 hidden px-1 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
             Chat
           </h2>
           <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />

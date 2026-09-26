@@ -101,9 +101,9 @@
   --chart-3: oklch(0.60 0.20 22);
   --chart-4: oklch(0.46 0.008 260);
   --chart-5: oklch(0.30 0.006 260);
-  /* Raio menor e mais reto — o mundo anterior era "pílula"; este é
-     "terminal": cantos quase retos, quase nenhuma decoração de forma. */
-  --radius: 0.25rem;
+  /* Cantos generosos: controles são pílula, superfícies (vídeo, painéis,
+     balões, diálogos) usam a escala abaixo — `sm` 0.6rem ... `2xl` 1.8rem. */
+  --radius: 1rem;
   --sidebar: oklch(0.09 0.004 260);
   --sidebar-foreground: oklch(0.95 0.012 80);
   --sidebar-primary: oklch(0.78 0.15 70);

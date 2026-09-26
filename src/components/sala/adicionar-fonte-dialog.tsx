@@ -74,7 +74,7 @@ export function AdicionarFonteDialog({ trigger, aoAdicionar }: AdicionarFonteDia
           </DialogHeader>
 
           <form onSubmit={adicionar} className="flex flex-col gap-4">
-            <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm">
+            <div className="flex items-center gap-2 rounded-2xl border border-border bg-card px-3.5 py-2.5 text-sm">
               <SquarePlay className="size-4 text-primary" />
               YouTube
             </div>

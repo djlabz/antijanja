@@ -42,10 +42,11 @@ typography:
     fontSize: "0.75rem"
     fontWeight: 400
 rounded:
-  sm: "0.15rem"
-  md: "0.2rem"
-  lg: "0.25rem"
-  xl: "0.35rem"
+  sm: "0.6rem"
+  md: "0.8rem"
+  lg: "1rem"
+  xl: "1.4rem"
+  pilula: "9999px"
   full: "9999px"
 spacing:
   xs: "0.375rem"
@@ -217,61 +218,64 @@ sólida (`carvao-flutuante`) por serem overlays flutuantes — função exige
 uma caixa ali, não decoração de página.
 
 ### Named Rules
-**The Overlay-Only Surface Rule.** Uma superfície sólida com fundo próprio
-só existe onde a função exige flutuar sobre o conteúdo (dialog, popover,
-select). Qualquer elemento que vive no fluxo normal da página nunca ganha
-um fundo próprio.
+**The Soft-Surface Rule.** Painéis de conteúdo (participantes, chat) ganharam
+uma superfície suave própria — branco a ~3,5% sobre o vazio, `rounded-3xl` —
+porque, com cantos arredondados, "zona solta no vazio" deixa de ler como
+intencional e passa a parecer inacabada. Continua sem sombra: a separação é
+só de tom. Overlays flutuantes (dialog, popover, select, chat em tela cheia)
+seguem com o fundo sólido `carvao-flutuante`.
 
 ## Shapes
 
-Raio de canto reduzido de propósito: base `0.25rem` (era `0.625rem`) —
-botões e inputs (onde ainda existe canto) usam `sm` (2.4px, quase reto).
-Vídeo e YouTube player perderam o canto arredondado inteiramente (retos,
-sangrando até a borda do próprio grid) — o plano de vídeo é o objeto, não
-um cartão que contém um objeto. Avatares deixaram de ser círculos: agora
-são quadrados de 16px, reforçando o vocabulário bitmap/blocado.
+Linguagem arredondada (decisão do usuário, ver ADR 023): base `1rem`, com a
+escala `sm` 0.6rem · `md` 0.8rem · `lg` 1rem · `xl` 1.4rem, e **pílula**
+(`rounded-full`) pra todo controle — botões, campos, abas, contadores.
+Superfícies grandes usam `rounded-2xl`/`rounded-3xl` (vídeo, painéis, balões
+de chat). Avatares são círculos. **Exceção:** em tela cheia o vídeo perde o
+canto (`rounded-none`), senão sobra um vão preto nos quatro cantos. O tile do
+vídeo se ajusta à proporção real da imagem — se ele fosse maior que a imagem,
+o canto arredondado cairia num quadro preto e o vídeo continuaria reto.
 
 ## Components
 
 ### Buttons
-- **Shape:** `rounded-sm` (2.4px, quase reto — era pílula/lg antes).
+- **Shape:** pílula (`rounded-full`); ícones sozinhos viram círculo.
 - **Primary:** fundo âmbar sólido, texto âmbar-profundo.
 - **Outline:** transparente, texto em poeira-4, borda quase invisível
   (opacidade 60% da borda padrão) que só fica nítida no hover.
 - **Ghost:** transparente, texto em poeira-3 (mais apagado que outline).
 - **Destructive:** vermelho suave, igual ao sistema anterior.
 
-### Campos de Formulário (mudança estrutural)
-- **Style:** sem fundo, sem borda fechada — só uma linha de base
-  (`border-bottom`) que troca pra âmbar em foco. Sem anel de foco (ring)
-  como no sistema anterior — o próprio traço de base já sinaliza o estado.
+### Campos de Formulário
+- **Style:** pílula preenchida (`rounded-full`, fundo `campo` a 30%, borda
+  fina) que ganha borda e anel âmbar em foco. O sublinhado do mundo anterior
+  saiu junto com os cantos retos.
 - **Rótulo:** prompt de terminal minúsculo em mono (`nome>`, `código>`),
-  substituindo o rótulo em title case do sistema anterior.
+  mantido.
 - **Cursor:** um cursor âmbar piscando (`.cursor-terminal`) aparece só em
   texto estático de destaque (o wordmark "SINAL", o título de convite) —
   nunca dentro do próprio `<input>`, que não suporta pseudo-elemento.
 
 ### Video Tile / YouTube Player (componente de assinatura)
-- **Moldura:** sem borda, sem canto arredondado — preto puro sangrando até
-  a borda do grid.
+- **Moldura:** `rounded-2xl` sem borda; o tile tem a proporção exata do
+  vídeo (ver Shapes) e é centralizado na célula.
 - **Legenda:** texto direto sobre o gradiente escuro no topo, sem pílula de
   fundo — nome em Pixelify Sans + ponto âmbar pulsante, como uma linha de
   crédito de abertura.
-- **Controle de tela cheia / remover vídeo:** ícone puro (sem fundo
-  circular), com `drop-shadow` pra legibilidade, aparece só no hover.
+- **Controles** (tela cheia, destacar, volume, estatísticas): ícone puro
+  com `drop-shadow`, aparecem só no hover.
 
 ### Fila de Participantes (era "Lista de Participantes")
 - **Ordenação:** quem compartilha primeiro (plano da frente); resto depois,
   em opacidade 55%.
-- **Marcador de identidade:** quadrado de 16px (era círculo), cor gerada
-  por hash do id, iniciais em preto por cima.
-- **Sem hover de fundo, sem linha por item** — cada participante é uma
-  linha de texto solta, não uma célula de lista.
+- **Marcador de identidade:** círculo de 24px, cor gerada por hash do id,
+  iniciais em preto por cima.
+- **Linha em pílula** com hover suave (`white/4%`) — fica dentro do painel
+  arredondado, não solta no vazio.
 
 ### Dialog / Popover / Select (superfícies flutuantes — mantidas)
-Únicos componentes que continuam com fundo sólido e canto levemente
-arredondado, por serem overlays: `carvao-flutuante`, `rounded-xl` (0.35rem
-agora, era 0.875rem). Mesma lógica de funcionamento do sistema anterior
+Fundo sólido `carvao-flutuante` por serem overlays, com `rounded-xl` (1.4rem
+agora). Mesma lógica de funcionamento do sistema anterior
 (controlados + desmontados quando fechados, ver ADR 012).
 
 ## Do's and Don'ts
@@ -296,3 +300,14 @@ agora, era 0.875rem). Mesma lógica de funcionamento do sistema anterior
 - **Don't** reintroduzir alternância de tema claro/escuro (ADR 007) nem
   voltar a coletar nome de exibição na home (ADR 016) — decisões de produto
   que sobrevivem a qualquer redesign.
+
+### Chat (balões)
+- Mensagem minha à direita, `bg-primary/15`; dos outros à esquerda,
+  `white/6%`; `rounded-2xl` com o canto de baixo do lado do autor menos
+  arredondado (`rounded-br-md`/`rounded-bl-md`), o "rabinho" do balão.
+- Nome (na cor do participante) e horário em 11px acima; campo de mensagem
+  em pílula com botão de enviar circular âmbar.
+
+### Abas do celular
+Controle segmentado em pílula (`white/5%`) com a aba ativa em `white/10%`;
+o contador de não lidas é uma pílula âmbar.

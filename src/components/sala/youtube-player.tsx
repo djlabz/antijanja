@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SquarePlay, X } from "lucide-react";
+import { LayoutGrid, Pin, SquarePlay, X } from "lucide-react";
+import { cn } from "@/lib/utils";
 import type { ComandoVideo, ParticipantId } from "@/lib/socket-events";
 
 interface YoutubePlayerProps {
@@ -12,6 +13,8 @@ interface YoutubePlayerProps {
   ultimoComando: (ComandoVideo & { de: ParticipantId }) | null;
   onComando: (comando: ComandoVideo) => void;
   onRemover?: () => void;
+  /** Botão de destacar/ver todas (só existe com 2+ telas). */
+  destaque?: { ativo: boolean; alternar: () => void };
 }
 
 let promessaApi: Promise<void> | null = null;
@@ -49,6 +52,7 @@ export function YoutubePlayer({
   ultimoComando,
   onComando,
   onRemover,
+  destaque,
 }: YoutubePlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YT.Player | null>(null);
@@ -147,7 +151,7 @@ export function YoutubePlayer({
   }, [souControlador, pronto, onComando]);
 
   return (
-    <div className="group relative aspect-video overflow-hidden bg-black md:aspect-auto">
+    <div className="group relative aspect-video overflow-hidden rounded-2xl bg-black md:w-[min(100cqw,calc(100cqh*16/9))]">
       <div ref={containerRef} className="h-full w-full" />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/80 to-transparent" />
@@ -157,6 +161,21 @@ export function YoutubePlayer({
           {ehPlaylist ? "Playlist do YouTube" : "YouTube"}
         </span>
       </div>
+
+      {destaque && (
+        <button
+          type="button"
+          onClick={destaque.alternar}
+          aria-label={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
+          title={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
+          className={cn(
+            "absolute top-2 hidden size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring md:flex",
+            onRemover ? "right-11" : "right-2.5"
+          )}
+        >
+          {destaque.ativo ? <LayoutGrid className="size-4" /> : <Pin className="size-4" />}
+        </button>
+      )}
 
       {onRemover && (
         <button
