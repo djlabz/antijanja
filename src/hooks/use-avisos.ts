@@ -95,7 +95,7 @@ export function useAvisos({ mensagens, participantes, euId }: AvisosProps) {
   useEffect(() => {
     const novas = mensagens.slice(mensagensVistasRef.current);
     mensagensVistasRef.current = mensagens.length;
-    const deOutros = novas.filter((m) => m.de !== euId).length;
+    const deOutros = novas.filter((m) => m.de !== euId && !m.sistema).length;
     if (deOutros > 0) avisar(deOutros);
   }, [mensagens, euId, avisar]);
 

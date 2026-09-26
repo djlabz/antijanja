@@ -17,6 +17,7 @@ import type {
   EventosServidor,
   ParticipantId,
 } from "./src/lib/socket-events";
+import { REACOES } from "./src/lib/socket-events";
 import {
   definirFonteVideo,
   entrarNaSala,
@@ -151,6 +152,25 @@ app.prepare().then(() => {
         nome: dados.nome,
         texto: limpo,
         em: Date.now(),
+      });
+    });
+
+    // Reações: só emojis da lista fechada, no máximo 8 por segundo por
+    // pessoa — sem isso um clique automático encheria a tela de todo mundo.
+    const enviadasRecentes: number[] = [];
+    socket.on("reacao:enviar", (emoji) => {
+      if (!dados.codigo || !dados.nome) return;
+      if (!(REACOES as readonly string[]).includes(emoji)) return;
+      const agora = Date.now();
+      while (enviadasRecentes.length && agora - enviadasRecentes[0] > 1000) {
+        enviadasRecentes.shift();
+      }
+      if (enviadasRecentes.length >= 8) return;
+      enviadasRecentes.push(agora);
+      io.to(dados.codigo).emit("reacao:recebida", {
+        de: socket.id,
+        nome: dados.nome,
+        emoji,
       });
     });
 

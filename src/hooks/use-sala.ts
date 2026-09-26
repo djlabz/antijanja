@@ -18,6 +18,14 @@ import type {
 
 type Status = "conectando" | "conectado" | "erro";
 
+export interface ReacaoFlutuante {
+  id: number;
+  emoji: string;
+  nome: string;
+  /** Posição horizontal, em % da largura do vídeo. */
+  x: number;
+}
+
 export interface EstatisticasVideo {
   largura: number;
   altura: number;
@@ -64,6 +72,9 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   const [ultimoComandoVideo, setUltimoComandoVideo] = useState<
     (ComandoVideo & { de: ParticipantId }) | null
   >(null);
+
+  const [reacoes, setReacoes] = useState<ReacaoFlutuante[]>([]);
+  const contadorReacaoRef = useRef(0);
 
   const socketRef = useRef<SocketSala | null>(null);
   const conexoesSaida = useRef(new Map<ParticipantId, RTCPeerConnection>());
@@ -248,7 +259,15 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     window.addEventListener("offline", aoFicarOffline);
     window.addEventListener("online", aoFicarOnline);
 
+    function avisoDeSistema(texto: string) {
+      setMensagens((atual) => [
+        ...atual,
+        { de: "", nome: "", texto, em: Date.now(), sistema: true },
+      ]);
+    }
+
     socket.on("participante:entrou", (participante) => {
+      avisoDeSistema(`${participante.nome} entrou`);
       setParticipantes((atual) => {
         const proximo = [...atual, participante];
         participantesRef.current = proximo;
@@ -260,6 +279,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     });
 
     socket.on("participante:saiu", (id) => {
+      const quemSaiu = participantesRef.current.find((p) => p.id === id);
+      if (quemSaiu) avisoDeSistema(`${quemSaiu.nome} saiu`);
       setParticipantes((atual) => {
         const proximo = atual.filter((p) => p.id !== id);
         participantesRef.current = proximo;
@@ -271,6 +292,14 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     socket.on("chat:mensagem", (mensagem) => {
       setMensagens((atual) => [...atual, mensagem]);
+    });
+
+    socket.on("reacao:recebida", ({ nome: quem, emoji }) => {
+      const id = ++contadorReacaoRef.current;
+      const x = 10 + Math.random() * 80;
+      // Limite de 30 na tela pra uma enxurrada não pesar; cada uma some sozinha.
+      setReacoes((atual) => [...atual.slice(-29), { id, emoji, nome: quem, x }]);
+      setTimeout(() => setReacoes((atual) => atual.filter((r) => r.id !== id)), 2600);
     });
 
     socket.on("link:publico", (url) => {
@@ -348,6 +377,10 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
    * Deixa quem assiste diferenciar rede fraca de configuração de quem
    * transmite (ver ADR 019).
    */
+  const enviarReacao = useCallback((emoji: string) => {
+    socketRef.current?.emit("reacao:enviar", emoji);
+  }, []);
+
   const lerEstatisticasEntrada = useCallback(async (id: ParticipantId) => {
     const pc = conexoesEntrada.current.get(id);
     if (!pc) return null;
@@ -503,6 +536,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     enviarComandoVideo,
     enviarMensagem,
     lerEstatisticasEntrada,
+    reacoes,
+    enviarReacao,
     iniciarCompartilhamento,
     pararCompartilhamento,
     atualizarQualidadeAoVivo,

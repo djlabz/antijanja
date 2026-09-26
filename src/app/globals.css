@@ -141,6 +141,20 @@
       transition-duration: 0.01ms !important;
     }
   }
+  /* Reações sem movimento: só aparecem e somem (fade), senão a regra acima
+     as mataria em 0.01ms e ninguém veria a reação. Fica nesta camada porque
+     `!important` em camadas inverte a prioridade (a anterior vence). */
+  @media (prefers-reduced-motion: reduce) {
+    @keyframes reacao-fade {
+      0% { opacity: 0; }
+      15%, 85% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+    .reacao-flutuante {
+      animation: reacao-fade 1.8s linear forwards !important;
+      animation-duration: 1.8s !important;
+    }
+  }
   ::-webkit-scrollbar {
     width: 10px;
     height: 10px;
@@ -189,6 +203,15 @@
   @keyframes deriva-poeira {
     from { background-position: 0 0; }
     to { background-position: 0 -90px; }
+  }
+  /* Reação sobe, cresce um pouco no começo e desaparece. */
+  @keyframes reacao-sobe {
+    0% { opacity: 0; transform: translateY(0) scale(0.6); }
+    12% { opacity: 1; transform: translateY(-16px) scale(1.15); }
+    100% { opacity: 0; transform: translateY(-180px) scale(1); }
+  }
+  .reacao-flutuante {
+    animation: reacao-sobe 2.5s ease-out forwards;
   }
   .campo-poeira {
     background-image:

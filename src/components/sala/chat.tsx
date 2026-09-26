@@ -1,17 +1,19 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { SendHorizontal } from "lucide-react";
+import { SendHorizontal, SmilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { corDoParticipante } from "@/lib/cor-participante";
-import type { ChatMessage, ParticipantId } from "@/lib/socket-events";
+import { REACOES, type ChatMessage, type ParticipantId } from "@/lib/socket-events";
 
 interface ChatProps {
   mensagens: ChatMessage[];
   euId: ParticipantId | null;
   onEnviar: (texto: string) => void;
+  /** Manda uma reação que flutua sobre o vídeo (não entra no chat). */
+  onReagir?: (emoji: string) => void;
 }
 
 // Distância do fundo (px) até onde ainda conta como "estou lendo o fim" e a
@@ -26,8 +28,10 @@ function formatarHorario(em: number) {
   });
 }
 
-export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
+export function Chat({ mensagens, euId, onEnviar, onReagir }: ChatProps) {
   const [texto, setTexto] = useState("");
+  const [reagindo, setReagindo] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const listaRef = useRef<HTMLDivElement>(null);
   const colarNoFimRef = useRef(true);
   const alturaRef = useRef(0);
@@ -71,6 +75,23 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
     return () => observador.disconnect();
   }, []);
 
+  // Fecha o seletor de reações ao clicar fora dele ou apertar Esc.
+  useEffect(() => {
+    if (!reagindo) return;
+    function fora(e: MouseEvent) {
+      if (!formRef.current?.contains(e.target as Node)) setReagindo(false);
+    }
+    function esc(e: KeyboardEvent) {
+      if (e.key === "Escape") setReagindo(false);
+    }
+    document.addEventListener("mousedown", fora);
+    document.addEventListener("keydown", esc);
+    return () => {
+      document.removeEventListener("mousedown", fora);
+      document.removeEventListener("keydown", esc);
+    };
+  }, [reagindo]);
+
   function enviar() {
     const limpo = texto.trim();
     if (!limpo) return;
@@ -95,6 +116,16 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
             <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
           )}
           {mensagens.map((m, i) => {
+            if (m.sistema) {
+              return (
+                <p
+                  key={i}
+                  className="animate-in py-0.5 text-center text-xs text-muted-foreground fade-in-0 duration-200"
+                >
+                  {m.texto}
+                </p>
+              );
+            }
             const minha = m.de === euId;
             return (
               <div
@@ -130,12 +161,50 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
         </div>
       </div>
       <form
-        className="flex shrink-0 items-center gap-2"
+        ref={formRef}
+        className="relative flex shrink-0 items-center gap-2"
         onSubmit={(e) => {
           e.preventDefault();
           enviar();
         }}
       >
+        {onReagir && (
+          <>
+            {reagindo && (
+              <div
+                role="group"
+                aria-label="Reações"
+                className="absolute bottom-full left-0 mb-2 flex animate-in gap-0.5 rounded-full bg-popover p-1.5 ring-1 ring-foreground/10 fade-in-0 slide-in-from-bottom-1 duration-150"
+              >
+                {REACOES.map((emoji) => (
+                  <button
+                    key={emoji}
+                    type="button"
+                    onClick={() => onReagir(emoji)}
+                    // Não tira o foco do campo (teclado do celular continua aberto).
+                    onPointerDown={(e) => e.preventDefault()}
+                    className="flex size-9 items-center justify-center rounded-full text-xl transition-transform hover:bg-white/10 active:scale-90"
+                    aria-label={`Reagir com ${emoji}`}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            )}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-lg"
+              aria-label="Reações"
+              aria-expanded={reagindo}
+              onClick={() => setReagindo((r) => !r)}
+              onPointerDown={(e) => e.preventDefault()}
+              className="shrink-0"
+            >
+              <SmilePlus className="size-5" />
+            </Button>
+          </>
+        )}
         <Input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}

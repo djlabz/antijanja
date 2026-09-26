@@ -20,6 +20,21 @@ export interface ChatMessage {
   nome: string;
   texto: string;
   em: number;
+  /** Aviso local ("Fulano entrou") gerado pelo próprio cliente — nunca vem do servidor. */
+  sistema?: boolean;
+}
+
+/**
+ * Reações rápidas que flutuam sobre o vídeo. Lista fechada e compartilhada:
+ * o servidor descarta qualquer emoji fora dela, então ninguém consegue
+ * mandar texto arbitrário por esse canal.
+ */
+export const REACOES = ["👍", "😂", "🔥", "❤️", "😮", "👏"] as const;
+
+export interface ReacaoRecebida {
+  de: ParticipantId;
+  nome: string;
+  emoji: string;
 }
 
 export type SinalTipo = "offer" | "answer" | "candidate";
@@ -73,6 +88,7 @@ export interface EventosCliente {
     ) => void
   ) => void;
   "chat:enviar": (payload: { texto: string }) => void;
+  "reacao:enviar": (emoji: string) => void;
   "compartilhar:iniciar": () => void;
   "compartilhar:parar": () => void;
   "webrtc:sinal": (payload: SinalPayload & { para: ParticipantId }) => void;
@@ -89,6 +105,7 @@ export interface EventosServidor {
   "participante:entrou": (participante: Participant) => void;
   "participante:saiu": (id: ParticipantId) => void;
   "chat:mensagem": (mensagem: ChatMessage) => void;
+  "reacao:recebida": (reacao: ReacaoRecebida) => void;
   "compartilhar:iniciou": (id: ParticipantId) => void;
   "compartilhar:parou": (id: ParticipantId) => void;
   "webrtc:sinal": (payload: SinalPayload & { de: ParticipantId }) => void;

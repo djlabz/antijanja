@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Link2 } from "lucide-react";
-import { useCopiar, useLinkSala } from "@/hooks/use-link-sala";
+import { Check, Copy, Link2, Share2 } from "lucide-react";
+import { useCompartilharNativo, useCopiar, useLinkSala } from "@/hooks/use-link-sala";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -42,6 +42,7 @@ export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSala
   const [aberto, setAberto] = useState(false);
   const link = useLinkSala(linkPublico);
   const { copiado, copiar } = useCopiar(link);
+  const { disponivel: podeCompartilhar, compartilhar } = useCompartilharNativo(link);
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
@@ -82,6 +83,13 @@ export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSala
               {copiado ? <Check className="size-4" /> : <Copy className="size-4" />}
             </Button>
           </div>
+
+          {podeCompartilhar && (
+            <Button type="button" className="w-full" onClick={compartilhar}>
+              <Share2 className="size-4" />
+              Compartilhar…
+            </Button>
+          )}
 
           <p className="text-xs text-muted-foreground">
             Código da sala: <span className="font-mono text-foreground">{codigo}</span>

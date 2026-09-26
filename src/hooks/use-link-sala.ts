@@ -20,6 +20,34 @@ export function useLinkSala(linkPublico?: string | null) {
   return origem ? `${origem}${caminho}` : "";
 }
 
+/**
+ * Menu de compartilhar do próprio aparelho (WhatsApp, Telegram...). Só
+ * aparece no toque: no PC, `navigator.share` existe em alguns navegadores
+ * mas abre um menu do sistema que atrapalha mais do que ajuda.
+ */
+export function useCompartilharNativo(link: string) {
+  const [disponivel] = useState(
+    () =>
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function" &&
+      window.matchMedia("(hover: none)").matches
+  );
+
+  const compartilhar = useCallback(async () => {
+    try {
+      await navigator.share({
+        title: "Sinal",
+        text: "Entra na minha sala no Sinal:",
+        url: link,
+      });
+    } catch {
+      // Cancelou o menu (AbortError) — nada a mostrar.
+    }
+  }, [link]);
+
+  return { disponivel, compartilhar };
+}
+
 /** Copia `texto` e mantém `copiado` ligado por 2s pra dar retorno visual. */
 export function useCopiar(texto: string) {
   const [copiado, setCopiado] = useState(false);

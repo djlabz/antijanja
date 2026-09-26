@@ -27,6 +27,7 @@ import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
 import {
   EVENTO_ABRIR_CHAT,
   EVENTO_MUDO,
+  EVENTO_PIP,
   EVENTO_TELA_CHEIA,
   VideoTile,
 } from "./video-tile";
@@ -36,6 +37,7 @@ import { Chat } from "./chat";
 import { CompartilharSalaDialog } from "./compartilhar-sala-dialog";
 import { CopiarLinkButton } from "./copiar-link-button";
 import { LinkConvite } from "./link-convite";
+import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
@@ -77,6 +79,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
     enviarComandoVideo,
     enviarMensagem,
     lerEstatisticasEntrada,
+    reacoes,
+    enviarReacao,
     iniciarCompartilhamento,
     pararCompartilhamento,
     atualizarQualidadeAoVivo,
@@ -89,7 +93,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const [aba, setAba] = useState<"participantes" | "chat">("chat");
   const [vistas, setVistas] = useState(0);
   const lidas = aba === "chat" ? mensagens.length : vistas;
-  const naoLidas = mensagens.slice(lidas).filter((m) => m.de !== euId).length;
+  const naoLidas = mensagens.slice(lidas).filter((m) => m.de !== euId && !m.sistema).length;
 
   function trocarAba(nova: "participantes" | "chat") {
     if (nova !== "chat") setVistas(mensagens.length);
@@ -126,9 +130,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
     }
     function aoTeclar(e: KeyboardEvent) {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
-      const alvo = e.target as HTMLElement;
+      const alvo = e.target as HTMLElement | null;
       if (
-        alvo.closest(
+        alvo?.closest?.(
           "input:not([type=range]), textarea, select, [contenteditable=true], [role=dialog]"
         )
       ) {
@@ -140,6 +144,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
           break;
         case "m":
           tela("[data-video-tile][data-remoto]")?.dispatchEvent(new Event(EVENTO_MUDO));
+          break;
+        case "p":
+          tela("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_PIP));
           break;
         case "c":
           setCinema((atual) => !atual);
@@ -192,7 +199,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const souControladorDoVideo =
     !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
   const chatSobreposto = (
-    <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />
+    <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} onReagir={enviarReacao} />
   );
   type Destaque = { ativo: boolean; alternar: () => void } | undefined;
   const itens: { id: string; render: (d: Destaque) => ReactNode }[] = [];
@@ -217,7 +224,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     itens.push({
       id: "local",
       render: (d) => (
-        <VideoTile stream={streamLocal} nome="Você" mudo chat={chatSobreposto} destaque={d} />
+        <VideoTile stream={streamLocal} nome="Você" mudo chat={chatSobreposto} destaque={d} reacoes={reacoes} />
       ),
     });
   }
@@ -232,6 +239,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           estatisticasDe={lerEstatisticasEntrada}
           chat={chatSobreposto}
           destaque={d}
+          reacoes={reacoes}
         />
       ),
     });
@@ -361,7 +369,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
       >
         <main
           className={cn(
-            "order-1 shrink-0 transition-[margin] duration-300 ease-out md:order-2 md:min-h-0 md:shrink",
+            "relative order-1 shrink-0 transition-[margin] duration-300 ease-out md:order-2 md:min-h-0 md:shrink",
             cinema && "md:-ml-4",
             !nadaAtivo && "max-h-[50dvh] overflow-y-auto md:max-h-none md:overflow-visible"
           )}
@@ -454,6 +462,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
               })}
             </div>
           )}
+          <ReacoesFlutuantes reacoes={reacoes} />
         </main>
 
         <div role="tablist" className="order-2 flex shrink-0 gap-1 rounded-full bg-white/[0.05] p-1 md:hidden">
@@ -509,7 +518,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
             Chat
           </h2>
-          <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />
+          <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} onReagir={enviarReacao} />
         </aside>
       </div>
     </div>

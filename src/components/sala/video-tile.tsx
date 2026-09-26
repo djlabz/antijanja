@@ -2,10 +2,21 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { flushSync } from "react-dom";
-import { LayoutGrid, MessageSquare, Maximize, Minimize, Pin, Volume2, VolumeX, X } from "lucide-react";
+import {
+  LayoutGrid,
+  MessageSquare,
+  Maximize,
+  Minimize,
+  Pin,
+  PictureInPicture2,
+  Volume2,
+  VolumeX,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { alternarTelaCheia } from "@/lib/tela-cheia";
-import type { EstatisticasVideo } from "@/hooks/use-sala";
+import type { EstatisticasVideo, ReacaoFlutuante } from "@/hooks/use-sala";
+import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import type { ParticipantId } from "@/lib/socket-events";
 import {
   Tooltip,
@@ -25,6 +36,8 @@ interface VideoTileProps {
   chat?: ReactNode;
   /** Botão de destacar/ver todas (só existe com 2+ telas). */
   destaque?: { ativo: boolean; alternar: () => void };
+  /** Reações em andamento — mostradas aqui só em tela cheia (fora dela a sala as mostra). */
+  reacoes?: ReacaoFlutuante[];
   className?: string;
 }
 
@@ -33,6 +46,20 @@ interface VideoTileProps {
 export const EVENTO_TELA_CHEIA = "sinal:tela-cheia";
 export const EVENTO_MUDO = "sinal:mudo";
 export const EVENTO_ABRIR_CHAT = "sinal:abrir-chat";
+export const EVENTO_PIP = "sinal:pip";
+
+// Botões de ícone puro sobre o vídeo (sem fundo), legíveis por sombra.
+const BOTAO_ICONE =
+  "flex size-7 items-center justify-center text-white/80 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] hover:text-white focus-visible:outline-2 focus-visible:outline-ring";
+
+/** Solta o vídeo numa janelinha flutuante (ou volta), onde o navegador suporta. */
+function alternarPip(video: HTMLVideoElement | null) {
+  if (document.pictureInPictureElement) {
+    document.exitPictureInPicture().catch(() => {});
+  } else {
+    video?.requestPictureInPicture?.().catch(() => {});
+  }
+}
 
 function formatarEstatisticas(atual: EstatisticasVideo, anterior: EstatisticasVideo | null) {
   if (!atual.altura) return null;
@@ -52,6 +79,7 @@ export function VideoTile({
   participanteId,
   chat,
   destaque,
+  reacoes,
   className,
 }: VideoTileProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -65,6 +93,10 @@ export function VideoTile({
   // ajusta a ela pra o canto arredondado ficar na imagem, e não num quadro
   // preto maior em volta dela.
   const [proporcao, setProporcao] = useState(16 / 9);
+  const [emPip, setEmPip] = useState(false);
+  // Em tela cheia, sem mexer o mouse por 3s os controles e o cursor somem.
+  const [ocioso, setOcioso] = useState(false);
+  const pipDisponivel = typeof document !== "undefined" && document.pictureInPictureEnabled;
 
   useEffect(() => {
     const video = videoRef.current;
@@ -107,6 +139,7 @@ export function VideoTile({
     function aoMudarTelaCheia() {
       const cheia = document.fullscreenElement === containerRef.current;
       setEmTelaCheia(cheia);
+      setOcioso(false);
       if (!cheia) {
         screen.orientation?.unlock?.();
         setChatAberto(false);
@@ -117,8 +150,41 @@ export function VideoTile({
   }, []);
 
   useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return;
+    const entrou = () => setEmPip(true);
+    const saiu = () => setEmPip(false);
+    video.addEventListener("enterpictureinpicture", entrou);
+    video.addEventListener("leavepictureinpicture", saiu);
+    return () => {
+      video.removeEventListener("enterpictureinpicture", entrou);
+      video.removeEventListener("leavepictureinpicture", saiu);
+    };
+  }, []);
+
+  // Esconde os controles depois de 3s parado em tela cheia; qualquer
+  // movimento, toque ou tecla traz de volta e recomeça a contagem.
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!emTelaCheia || !container) return;
+    let timer = setTimeout(() => setOcioso(true), 3000);
+    function agitar() {
+      setOcioso(false);
+      clearTimeout(timer);
+      timer = setTimeout(() => setOcioso(true), 3000);
+    }
+    const eventos = ["mousemove", "pointerdown", "touchstart", "keydown"] as const;
+    for (const e of eventos) container.addEventListener(e, agitar);
+    return () => {
+      for (const e of eventos) container.removeEventListener(e, agitar);
+      clearTimeout(timer);
+    };
+  }, [emTelaCheia]);
+
+  useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+    const pip = () => alternarPip(videoRef.current);
     const telaCheia = () => alternarTelaCheia(container, videoRef.current);
     const alternarMudo = () => setSilenciado((s) => !s);
     const abrirChat = () => {
@@ -126,10 +192,12 @@ export function VideoTile({
       flushSync(() => setChatAberto(true));
       container.querySelector<HTMLInputElement>("[data-chat-input]")?.focus();
     };
+    container.addEventListener(EVENTO_PIP, pip);
     container.addEventListener(EVENTO_TELA_CHEIA, telaCheia);
     container.addEventListener(EVENTO_MUDO, alternarMudo);
     container.addEventListener(EVENTO_ABRIR_CHAT, abrirChat);
     return () => {
+      container.removeEventListener(EVENTO_PIP, pip);
       container.removeEventListener(EVENTO_TELA_CHEIA, telaCheia);
       container.removeEventListener(EVENTO_MUDO, alternarMudo);
       container.removeEventListener(EVENTO_ABRIR_CHAT, abrirChat);
@@ -159,6 +227,8 @@ export function VideoTile({
     };
   }, [estatisticasDe, participanteId]);
 
+  // Com o chat aberto os controles ficam (a pessoa está digitando).
+  const ocultar = emTelaCheia && ocioso && !chatAberto;
   const tocaSom = !mudo;
   const volumeMostrado = silenciado ? 0 : volume;
 
@@ -167,6 +237,7 @@ export function VideoTile({
       ref={containerRef}
       data-video-tile
       data-remoto={tocaSom ? "" : undefined}
+      data-ocultar={ocultar ? "" : undefined}
       style={{ "--proporcao": proporcao } as React.CSSProperties}
       // Duplo toque/clique no vídeo alterna tela cheia — o botão do canto é
       // pequeno pra acertar com o dedo. `touch-manipulation` tira o zoom de
@@ -184,7 +255,7 @@ export function VideoTile({
         // Canto arredondado sem borda: a separação do vazio ao redor vem da
         // própria imagem contra o preto (ver DESIGN.md). Em tela cheia o
         // canto some, senão aparece um vão preto nos quatro cantos.
-        "group relative overflow-hidden rounded-2xl bg-black",
+        "group relative overflow-hidden rounded-2xl bg-black data-[ocultar]:cursor-none",
         emTelaCheia && "flex items-center justify-center rounded-none",
         className
       )}
@@ -197,11 +268,13 @@ export function VideoTile({
         className={cn("h-full w-full object-contain", emTelaCheia && "h-auto max-h-full")}
       />
 
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/80 to-transparent" />
+      {emTelaCheia && reacoes && <ReacoesFlutuantes reacoes={reacoes} />}
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-black/80 to-transparent transition-opacity group-data-[ocultar]:opacity-0" />
 
       {/* Legenda sem pílula/fundo — texto direto sobre o gradiente, como uma
           linha de crédito de abertura (ver DESIGN.md, "Fila de Créditos"). */}
-      <div className="absolute top-2.5 left-3 flex items-center gap-2">
+      <div className="absolute top-2.5 left-3 flex items-center gap-2 transition-opacity group-data-[ocultar]:opacity-0">
         <span className="relative flex size-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
           <span className="relative inline-flex size-1.5 rounded-full bg-primary" />
@@ -209,46 +282,60 @@ export function VideoTile({
         <span className="font-heading text-xs tracking-wide text-white">{nome}</span>
       </div>
 
-      {destaque && !emTelaCheia && (
-        <button
-          type="button"
-          onClick={destaque.alternar}
-          aria-label={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
-          title={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
-          className="absolute top-2 right-11 hidden size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring md:flex"
-        >
-          {destaque.ativo ? <LayoutGrid className="size-4" /> : <Pin className="size-4" />}
-        </button>
-      )}
+      <div className="absolute top-2 right-2.5 flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100 group-data-[ocultar]:opacity-0! focus-within:opacity-100 [@media(hover:none)]:opacity-100">
+        {pipDisponivel && (
+          <button
+            type="button"
+            onClick={() => alternarPip(videoRef.current)}
+            aria-label={emPip ? "Sair da janela flutuante (P)" : "Janela flutuante (P)"}
+            title={emPip ? "Sair da janela flutuante (P)" : "Janela flutuante (P)"}
+            className={cn(BOTAO_ICONE, "hidden md:flex")}
+          >
+            <PictureInPicture2 className="size-4" />
+          </button>
+        )}
 
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <button
-              type="button"
-              onClick={() => alternarTelaCheia(containerRef.current, videoRef.current)}
-              className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [@media(hover:none)]:opacity-100 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
-            />
-          }
-        >
-          {emTelaCheia ? (
-            <Minimize className="size-4" />
-          ) : (
-            <Maximize className="size-4" />
-          )}
-          <span className="sr-only">
-            {emTelaCheia ? "Sair da tela cheia" : "Tela cheia"}
-          </span>
-        </TooltipTrigger>
-        <TooltipContent>
-          {emTelaCheia ? "Sair da tela cheia (F)" : "Tela cheia (F)"}
-        </TooltipContent>
-      </Tooltip>
+        {destaque && !emTelaCheia && (
+          <button
+            type="button"
+            onClick={destaque.alternar}
+            aria-label={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
+            title={destaque.ativo ? "Ver todas as telas" : "Destacar esta tela"}
+            className={cn(BOTAO_ICONE, "hidden md:flex")}
+          >
+            {destaque.ativo ? <LayoutGrid className="size-4" /> : <Pin className="size-4" />}
+          </button>
+        )}
+
+        <Tooltip>
+          <TooltipTrigger
+            render={
+              <button
+                type="button"
+                onClick={() => alternarTelaCheia(containerRef.current, videoRef.current)}
+                className={BOTAO_ICONE}
+              />
+            }
+          >
+            {emTelaCheia ? (
+              <Minimize className="size-4" />
+            ) : (
+              <Maximize className="size-4" />
+            )}
+            <span className="sr-only">
+              {emTelaCheia ? "Sair da tela cheia" : "Tela cheia"}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>
+            {emTelaCheia ? "Sair da tela cheia (F)" : "Tela cheia (F)"}
+          </TooltipContent>
+        </Tooltip>
+      </div>
 
       {/* Barra de baixo: volume (só onde tem mouse — no celular é o botão
           do aparelho), estatísticas de recepção e o botão do chat em tela
           cheia. Aparece no hover; no toque só sobra o que é útil lá. */}
-      <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent px-3 pt-8 pb-2 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:bg-none [@media(hover:none)]:opacity-100">
+      <div className="absolute inset-x-0 bottom-0 flex items-center gap-3 bg-gradient-to-t from-black/80 to-transparent px-3 pt-8 pb-2 opacity-0 transition-opacity group-hover:opacity-100 group-data-[ocultar]:opacity-0! focus-within:opacity-100 [@media(hover:none)]:bg-none [@media(hover:none)]:opacity-100">
         {tocaSom && (
           <div className="hidden items-center gap-2 [@media(hover:hover)]:flex">
             <button
