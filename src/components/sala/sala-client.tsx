@@ -1,12 +1,18 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import {
+  Bell,
+  BellOff,
   Info,
+  LayoutGrid,
   LogOut,
   MonitorUp,
   MonitorX,
+  PanelLeftClose,
+  PanelLeftOpen,
+  Pin,
   SquarePlay as YoutubeIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,12 +24,19 @@ import {
 } from "@/components/ui/tooltip";
 import { useSala } from "@/hooks/use-sala";
 import { useWakeLock } from "@/hooks/use-wake-lock";
+import { useAvisos } from "@/hooks/use-avisos";
 import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
-import { VideoTile } from "./video-tile";
+import {
+  EVENTO_ABRIR_CHAT,
+  EVENTO_MUDO,
+  EVENTO_TELA_CHEIA,
+  VideoTile,
+} from "./video-tile";
 import { YoutubePlayer } from "./youtube-player";
 import { ListaParticipantes } from "./lista-participantes";
 import { Chat } from "./chat";
 import { CompartilharSalaDialog } from "./compartilhar-sala-dialog";
+import { CopiarLinkButton } from "./copiar-link-button";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
@@ -64,6 +77,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     removerFonteVideo,
     enviarComandoVideo,
     enviarMensagem,
+    lerEstatisticasEntrada,
     iniciarCompartilhamento,
     pararCompartilhamento,
     atualizarQualidadeAoVivo,
@@ -87,6 +101,66 @@ export function SalaClient({ codigo }: SalaClientProps) {
   useWakeLock(
     !!streamLocal || Object.keys(streamsRemotos).length > 0 || !!fonteVideo
   );
+
+  // Só desktop: esconde a lista de participantes pra dar mais largura ao
+  // vídeo (vídeo + chat). `destaqueId` é a tela ampliada quando há 2+ (as
+  // outras viram uma faixa de miniaturas); `null` = todas do mesmo tamanho.
+  const [cinema, setCinema] = useState(false);
+  const [destaqueId, setDestaqueId] = useState<string | null>(null);
+
+  // Contador no título da aba + bipe quando chega mensagem ou alguém começa
+  // a transmitir com a aba escondida (ver `useAvisos`).
+  const { somLigado, alternarSom } = useAvisos({ mensagens, participantes, euId });
+
+  // Atalhos: F tela cheia, M mudo, / chat, C modo cinema. Ignorados
+  // enquanto se digita (campo de texto) ou com um diálogo aberto; o slider
+  // de volume não conta como "digitando" — senão o atalho morreria depois
+  // de mexer nele.
+  useEffect(() => {
+    function tela(seletor: string) {
+      const cheia = document.fullscreenElement;
+      if (cheia?.hasAttribute("data-video-tile")) return cheia;
+      return (
+        document.querySelector(`[data-destacado] ${seletor}`) ??
+        document.querySelector(seletor)
+      );
+    }
+    function aoTeclar(e: KeyboardEvent) {
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
+      const alvo = e.target as HTMLElement;
+      if (
+        alvo.closest(
+          "input:not([type=range]), textarea, select, [contenteditable=true], [role=dialog]"
+        )
+      ) {
+        return;
+      }
+      switch (e.key.toLowerCase()) {
+        case "f":
+          tela("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_TELA_CHEIA));
+          break;
+        case "m":
+          tela("[data-video-tile][data-remoto]")?.dispatchEvent(new Event(EVENTO_MUDO));
+          break;
+        case "c":
+          setCinema((atual) => !atual);
+          break;
+        case "/": {
+          e.preventDefault();
+          const cheia = document.fullscreenElement;
+          if (cheia?.hasAttribute("data-video-tile")) {
+            cheia.dispatchEvent(new Event(EVENTO_ABRIR_CHAT));
+            break;
+          }
+          const campos = document.querySelectorAll<HTMLInputElement>("[data-chat-input]");
+          [...campos].find((c) => c.offsetParent !== null)?.focus();
+          break;
+        }
+      }
+    }
+    document.addEventListener("keydown", aoTeclar);
+    return () => document.removeEventListener("keydown", aoTeclar);
+  }, []);
 
   // Guarda o nome final (digitado ou "Convidado N" atribuído pelo
   // servidor) pra sobreviver a um refresh desta mesma aba.
@@ -116,12 +190,53 @@ export function SalaClient({ codigo }: SalaClientProps) {
   }
 
   const telas = Object.entries(streamsRemotos);
+  const souControladorDoVideo =
+    !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
+  const chatSobreposto = (
+    <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />
+  );
+  const itens: { id: string; node: ReactNode }[] = [];
+  if (fonteVideo) {
+    itens.push({
+      id: "youtube",
+      node: (
+        <YoutubePlayer
+          key={fonteVideo.youtubeId}
+          youtubeId={fonteVideo.youtubeId}
+          ehPlaylist={fonteVideo.ehPlaylist}
+          souControlador={souControladorDoVideo}
+          ultimoComando={ultimoComandoVideo}
+          onComando={enviarComandoVideo}
+          onRemover={souControladorDoVideo ? removerFonteVideo : undefined}
+        />
+      ),
+    });
+  }
+  if (streamLocal) {
+    itens.push({
+      id: "local",
+      node: <VideoTile stream={streamLocal} nome="Você" mudo chat={chatSobreposto} />,
+    });
+  }
+  for (const [id, stream] of telas) {
+    itens.push({
+      id,
+      node: (
+        <VideoTile
+          stream={stream}
+          nome={participantes.find((p) => p.id === id)?.nome ?? "Participante"}
+          participanteId={id}
+          estatisticasDe={lerEstatisticasEntrada}
+          chat={chatSobreposto}
+        />
+      ),
+    });
+  }
+  const destaque =
+    itens.length > 1 && itens.some((i) => i.id === destaqueId) ? destaqueId : null;
   const reconectando = status === "conectando" && euId !== null;
   const totalDeTelas = telas.length + (streamLocal ? 1 : 0) + (fonteVideo ? 1 : 0);
   const nadaAtivo = totalDeTelas === 0;
-  const souControladorDoVideo =
-    !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
-
   async function compartilhar() {
     try {
       await iniciarCompartilhamento();
@@ -190,6 +305,22 @@ export function SalaClient({ codigo }: SalaClientProps) {
           aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
         />
 
+        <div className="hidden items-center gap-0.5 md:flex">
+          <BotaoCabecalho
+            rotulo={cinema ? "Mostrar participantes (C)" : "Modo cinema (C)"}
+            onClick={() => setCinema((c) => !c)}
+          >
+            {cinema ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+          </BotaoCabecalho>
+          <BotaoCabecalho
+            rotulo={somLigado ? "Silenciar avisos sonoros" : "Ligar avisos sonoros"}
+            onClick={alternarSom}
+          >
+            {somLigado ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+          </BotaoCabecalho>
+          <CopiarLinkButton linkPublico={linkPublico} />
+        </div>
+
         <CompartilharSalaDialog codigo={codigo} linkPublico={linkPublico} />
 
         <Button
@@ -217,7 +348,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
           o painel da aba ativa ocupando o resto. Assim o vídeo nunca sai da
           tela enquanto se lê o chat e o teclado só empurra o painel. No
           desktop volta a ser a grade de três colunas. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3 md:grid md:grid-cols-[200px_1fr_280px] md:gap-4 md:p-4">
+      <div
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-2 p-3 md:grid md:gap-4 md:p-4",
+          cinema ? "md:grid-cols-[1fr_280px]" : "md:grid-cols-[200px_1fr_280px]"
+        )}
+      >
         <main
           className={cn(
             "order-1 shrink-0 md:order-2 md:min-h-0 md:shrink",
@@ -258,28 +394,53 @@ export function SalaClient({ codigo }: SalaClientProps) {
                 // Com uma única tela ela ocupa a largura toda; com 2+ divide
                 // em duas colunas. Sempre 2 colunas deixava uma coluna vazia
                 // e a tela única pela metade.
-                totalDeTelas > 1 && "sm:grid-cols-2"
+                itens.length > 1 && !destaque && "sm:grid-cols-2",
+                // Destaque (desktop): a escolhida ocupa a linha de cima, as
+                // outras viram miniaturas embaixo. Continuam filhas diretas
+                // do mesmo grid (só muda a classe): trocar de pai remontaria
+                // o player do YouTube e perderia a sincronia.
+                destaque &&
+                  "md:grid-cols-4 md:grid-rows-[minmax(0,1fr)_7rem] md:auto-rows-[7rem]"
               )}
             >
-              {fonteVideo && (
-                <YoutubePlayer
-                  key={fonteVideo.youtubeId}
-                  youtubeId={fonteVideo.youtubeId}
-                  ehPlaylist={fonteVideo.ehPlaylist}
-                  souControlador={souControladorDoVideo}
-                  ultimoComando={ultimoComandoVideo}
-                  onComando={enviarComandoVideo}
-                  onRemover={souControladorDoVideo ? removerFonteVideo : undefined}
-                />
-              )}
-              {streamLocal && <VideoTile stream={streamLocal} nome="Você" mudo />}
-              {telas.map(([id, stream]) => (
-                <VideoTile
-                  key={id}
-                  stream={stream}
-                  nome={participantes.find((p) => p.id === id)?.nome ?? "Participante"}
-                />
-              ))}
+              {itens.map((item) => {
+                const eDestaque = destaque === item.id;
+                const miniatura = !!destaque && !eDestaque;
+                return (
+                  <div
+                    key={item.id}
+                    data-destacado={eDestaque ? "" : undefined}
+                    className={cn(
+                      "group/envoltorio relative min-h-0 [&>:first-child]:h-full",
+                      destaque &&
+                        (eDestaque ? "md:col-span-4 md:row-start-1" : "md:row-start-2")
+                    )}
+                  >
+                    {item.node}
+                    {miniatura ? (
+                      <button
+                        type="button"
+                        onClick={() => setDestaqueId(item.id)}
+                        aria-label="Destacar esta tela"
+                        title="Destacar esta tela"
+                        className="absolute inset-0 z-10 hidden cursor-pointer hover:bg-white/5 md:block"
+                      />
+                    ) : (
+                      itens.length > 1 && (
+                        <button
+                          type="button"
+                          onClick={() => setDestaqueId(eDestaque ? null : item.id)}
+                          aria-label={eDestaque ? "Ver todas as telas" : "Destacar esta tela"}
+                          title={eDestaque ? "Ver todas as telas" : "Destacar esta tela"}
+                          className="absolute top-2 right-11 z-10 hidden size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover/envoltorio:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring md:flex"
+                        >
+                          {eDestaque ? <LayoutGrid className="size-4" /> : <Pin className="size-4" />}
+                        </button>
+                      )
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </main>
@@ -317,7 +478,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
         <aside
           className={cn(
             "order-3 min-h-0 flex-1 overflow-y-auto md:order-1 md:block md:flex-none md:overflow-visible",
-            aba !== "participantes" && "hidden"
+            aba !== "participantes" && "hidden",
+            cinema && "md:hidden"
           )}
         >
           <h2 className="mb-2 hidden border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
@@ -339,5 +501,35 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </aside>
       </div>
     </div>
+  );
+}
+
+/** Botão de ícone do cabeçalho, com dica no hover. */
+function BotaoCabecalho({
+  rotulo,
+  onClick,
+  children,
+}: {
+  rotulo: string;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <Button
+            type="button"
+            size="icon-sm"
+            variant="ghost"
+            onClick={onClick}
+            aria-label={rotulo}
+          />
+        }
+      >
+        {children}
+      </TooltipTrigger>
+      <TooltipContent>{rotulo}</TooltipContent>
+    </Tooltip>
   );
 }

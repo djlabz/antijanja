@@ -124,6 +124,7 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Escreva uma mensagem"
           maxLength={500}
+          data-chat-input
           enterKeyHint="send"
           autoComplete="off"
         />

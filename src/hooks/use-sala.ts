@@ -18,6 +18,15 @@ import type {
 
 type Status = "conectando" | "conectado" | "erro";
 
+export interface EstatisticasVideo {
+  largura: number;
+  altura: number;
+  fps: number;
+  bytes: number;
+  /** Timestamp do relatório WebRTC, em ms. */
+  em: number;
+}
+
 /**
  * Toda a lógica de uma sala: entrar via Socket.IO, trocar sinalização WebRTC
  * e manter as conexões ponto a ponto de compartilhamento de tela.
@@ -333,6 +342,30 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     };
   }, [codigo, nome, pronto, fecharConexaoEntrada, fecharConexaoSaida]);
 
+  /**
+   * Foto do vídeo que estou recebendo de `id` (resolução, fps e total de
+   * bytes recebidos — quem chama compara duas fotos pra achar o bitrate).
+   * Deixa quem assiste diferenciar rede fraca de configuração de quem
+   * transmite (ver ADR 019).
+   */
+  const lerEstatisticasEntrada = useCallback(async (id: ParticipantId) => {
+    const pc = conexoesEntrada.current.get(id);
+    if (!pc) return null;
+    let foto: EstatisticasVideo | null = null;
+    (await pc.getStats()).forEach((r) => {
+      if (r.type === "inbound-rtp" && (r.kind ?? r.mediaType) === "video") {
+        foto = {
+          largura: r.frameWidth ?? 0,
+          altura: r.frameHeight ?? 0,
+          fps: r.framesPerSecond ?? 0,
+          bytes: r.bytesReceived ?? 0,
+          em: r.timestamp,
+        };
+      }
+    });
+    return foto;
+  }, []);
+
   const enviarMensagem = useCallback((texto: string) => {
     if (!texto.trim()) return;
     socketRef.current?.emit("chat:enviar", { texto });
@@ -469,6 +502,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     removerFonteVideo,
     enviarComandoVideo,
     enviarMensagem,
+    lerEstatisticasEntrada,
     iniciarCompartilhamento,
     pararCompartilhamento,
     atualizarQualidadeAoVivo,

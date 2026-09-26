@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { usePathname } from "next/navigation";
 import { Check, Copy, Link2 } from "lucide-react";
+import { useCopiar, useLinkSala } from "@/hooks/use-link-sala";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -27,12 +27,7 @@ interface CompartilharSalaDialogProps {
 
 /**
  * Um único link que já leva direto pra sala — em vez de "entre nesse link e
- * digite esse código", como pedido. O caminho vem de `usePathname()` — NÃO
- * de `window.location.href` direto: numa navegação client-side do Next (ex:
- * preencher o formulário em "/" e cair aqui), o componente pode montar num
- * instante em que `location.href` ainda reflete a rota anterior, gerando um
- * link errado (bug real, visto e corrigido durante o desenvolvimento — ver
- * docs/decisions.md, ADR 009). `usePathname()` sempre reflete a rota atual.
+ * digite esse código", como pedido (ver `useLinkSala`).
  */
 export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSalaDialogProps) {
   // Controlado explicitamente, E o conteúdo só é renderizado quando aberto
@@ -45,28 +40,8 @@ export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSala
   // da biblioteca, mas garante que ele suma de verdade. Ver docs/decisions.md
   // (ADR 012).
   const [aberto, setAberto] = useState(false);
-  const caminho = usePathname();
-  // A origem local (protocolo+host) não muda durante a sessão, então ler
-  // uma vez no mount é seguro — é só o caminho que precisa vir de
-  // `usePathname()`. Só serve de fallback: `linkPublico`, quando existe,
-  // ganha (ver o comentário na prop acima).
-  const [origemLocal] = useState(() =>
-    typeof window !== "undefined" ? window.location.origin : ""
-  );
-  const origem = linkPublico ?? origemLocal;
-  const link = origem ? `${origem}${caminho}` : "";
-  const [copiado, setCopiado] = useState(false);
-
-  async function copiar() {
-    try {
-      await navigator.clipboard.writeText(link);
-      setCopiado(true);
-      setTimeout(() => setCopiado(false), 2000);
-    } catch {
-      // clipboard indisponível (ex: http sem permissão) — o campo continua
-      // selecionável pra copiar manualmente.
-    }
-  }
+  const link = useLinkSala(linkPublico);
+  const { copiado, copiar } = useCopiar(link);
 
   return (
     <Dialog open={aberto} onOpenChange={setAberto}>
