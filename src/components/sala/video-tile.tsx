@@ -41,11 +41,27 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
 
   useEffect(() => {
     function aoMudarTelaCheia() {
-      setEmTelaCheia(document.fullscreenElement === containerRef.current);
+      const cheia = document.fullscreenElement === containerRef.current;
+      setEmTelaCheia(cheia);
+      if (!cheia) screen.orientation?.unlock?.();
     }
     document.addEventListener("fullscreenchange", aoMudarTelaCheia);
     return () => document.removeEventListener("fullscreenchange", aoMudarTelaCheia);
   }, []);
+
+  /**
+   * Tela compartilhada é quase sempre horizontal: no celular em pé, tela
+   * cheia deixaria uma faixa estreita. Trava em paisagem enquanto está em
+   * tela cheia (o `fullscreenchange` abaixo destrava na saída). Só onde o
+   * navegador deixa (Chrome/Android) — em qualquer outro falha em silêncio.
+   */
+  function travarPaisagem() {
+    const ehToque = window.matchMedia("(hover: none)").matches;
+    const orientacao = screen.orientation as ScreenOrientation & {
+      lock?: (o: string) => Promise<void>;
+    };
+    if (ehToque) orientacao.lock?.("landscape").catch(() => {});
+  }
 
   function alternarTelaCheia() {
     if (document.fullscreenElement) {
@@ -57,7 +73,10 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
       | (HTMLVideoElement & { webkitEnterFullscreen?: () => void })
       | null;
     if (container?.requestFullscreen) {
-      container.requestFullscreen().catch(() => {});
+      container
+        .requestFullscreen()
+        .then(travarPaisagem)
+        .catch(() => {});
     } else {
       // iPhone/iOS Safari só deixa colocar o próprio <video> em tela cheia.
       video?.webkitEnterFullscreen?.();
@@ -67,7 +86,14 @@ export function VideoTile({ stream, nome, mudo, className }: VideoTileProps) {
   return (
     <div
       ref={containerRef}
+      // Duplo toque/clique no vídeo alterna tela cheia — o botão do canto é
+      // pequeno pra acertar com o dedo. `touch-manipulation` tira o zoom de
+      // duplo toque do navegador, que roubaria o gesto.
+      onDoubleClick={(e) => {
+        if (!(e.target as HTMLElement).closest("button")) alternarTelaCheia();
+      }}
       className={cn(
+        "touch-manipulation aspect-video md:aspect-auto",
         // Sem borda, sem canto arredondado: o plano da frente é o vídeo em
         // si, não uma moldura ao redor dele (ver DESIGN.md). A separação do
         // vazio ao redor vem só da própria imagem contra o preto puro.

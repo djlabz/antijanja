@@ -226,6 +226,19 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     }
     document.addEventListener("visibilitychange", aoVoltarAoApp);
 
+    // O Socket.IO só percebe a queda de rede no próximo ping (dezenas de
+    // segundos); o navegador avisa na hora. Serve pra mostrar "Reconectando"
+    // sem demora e tentar voltar assim que a rede volta.
+    function aoFicarOffline() {
+      setStatus("conectando");
+    }
+    function aoFicarOnline() {
+      if (socket.connected) setStatus("conectado");
+      else socket.connect();
+    }
+    window.addEventListener("offline", aoFicarOffline);
+    window.addEventListener("online", aoFicarOnline);
+
     socket.on("participante:entrou", (participante) => {
       setParticipantes((atual) => {
         const proximo = [...atual, participante];
@@ -303,6 +316,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     return () => {
       document.removeEventListener("visibilitychange", aoVoltarAoApp);
+      window.removeEventListener("offline", aoFicarOffline);
+      window.removeEventListener("online", aoFicarOnline);
       socket.removeAllListeners();
       conexoesSaida.current.forEach((pc) => pc.close());
       conexoesEntrada.current.forEach((pc) => pc.close());

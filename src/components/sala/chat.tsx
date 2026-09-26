@@ -29,10 +29,15 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
   const [texto, setTexto] = useState("");
   const listaRef = useRef<HTMLDivElement>(null);
   const colarNoFimRef = useRef(true);
+  const alturaRef = useRef(0);
 
   function aoRolar() {
     const lista = listaRef.current;
     if (!lista) return;
+    // Rolagem que vem junto com mudança de altura (aba reaparecendo, teclado)
+    // é o navegador restaurando/ajustando a posição, não a pessoa lendo o
+    // histórico — se contasse, o chat desistiria de ir pro fim.
+    if (lista.clientHeight !== alturaRef.current) return;
     colarNoFimRef.current =
       lista.scrollHeight - lista.scrollTop - lista.clientHeight < MARGEM_FIM;
   }
@@ -48,6 +53,22 @@ export function Chat({ mensagens, euId, onEnviar }: ChatProps) {
       lista.scrollTop = lista.scrollHeight;
     }
   }, [mensagens, euId]);
+
+  // A lista muda de tamanho quando a aba do chat reaparece (no celular ela
+  // fica `display: none` fora da aba) e quando o teclado abre/fecha; se a
+  // pessoa estava no fim, continua no fim em vez de ficar com as mensagens
+  // novas escondidas embaixo.
+  useEffect(() => {
+    const lista = listaRef.current;
+    if (!lista) return;
+    alturaRef.current = lista.clientHeight;
+    const observador = new ResizeObserver(() => {
+      alturaRef.current = lista.clientHeight;
+      if (colarNoFimRef.current) lista.scrollTop = lista.scrollHeight;
+    });
+    observador.observe(lista);
+    return () => observador.disconnect();
+  }, []);
 
   function enviar() {
     const limpo = texto.trim();

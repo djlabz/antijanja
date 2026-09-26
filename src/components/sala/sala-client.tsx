@@ -17,6 +17,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useSala } from "@/hooks/use-sala";
+import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
 import { VideoTile } from "./video-tile";
 import { YoutubePlayer } from "./youtube-player";
@@ -68,6 +69,25 @@ export function SalaClient({ codigo }: SalaClientProps) {
     atualizarQualidadeAoVivo,
   } = useSala(codigo, nome, pronto);
 
+  // Aba aberta no celular (no desktop os três painéis aparecem juntos) e
+  // quantas mensagens o chat já mostrou — o que passa disso e não é minha
+  // vira o contador de "não lidas" na aba. `vistas` só muda ao sair do chat,
+  // então dá pra derivar tudo sem efeito.
+  const [aba, setAba] = useState<"participantes" | "chat">("chat");
+  const [vistas, setVistas] = useState(0);
+  const lidas = aba === "chat" ? mensagens.length : vistas;
+  const naoLidas = mensagens.slice(lidas).filter((m) => m.de !== euId).length;
+
+  function trocarAba(nova: "participantes" | "chat") {
+    if (nova !== "chat") setVistas(mensagens.length);
+    setAba(nova);
+  }
+
+  // Tela acesa enquanto tem algo passando (ver `useWakeLock`).
+  useWakeLock(
+    !!streamLocal || Object.keys(streamsRemotos).length > 0 || !!fonteVideo
+  );
+
   // Guarda o nome final (digitado ou "Convidado N" atribuído pelo
   // servidor) pra sobreviver a um refresh desta mesma aba.
   useEffect(() => {
@@ -96,6 +116,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
   }
 
   const telas = Object.entries(streamsRemotos);
+  const reconectando = status === "conectando" && euId !== null;
   const totalDeTelas = telas.length + (streamLocal ? 1 : 0) + (fonteVideo ? 1 : 0);
   const nadaAtivo = totalDeTelas === 0;
   const souControladorDoVideo =
@@ -182,17 +203,29 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </Button>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 gap-5 p-3 md:grid-cols-[200px_1fr_280px] md:gap-4 md:p-4">
-        <aside className="order-2 md:order-1">
-          <h2 className="mb-2 border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase">
-            Participantes · {participantes.length}
-          </h2>
-          <ListaParticipantes participantes={participantes} euId={euId} />
-        </aside>
+      {reconectando && (
+        <div
+          role="status"
+          className="flex items-center justify-center gap-2 border-b border-border/40 bg-primary/10 px-3 py-1.5 text-xs text-primary"
+        >
+          <span className="size-1.5 animate-pulse rounded-full bg-primary" />
+          Reconectando…
+        </div>
+      )}
 
-        <main className="order-1 min-h-[40vh] md:order-2 md:min-h-0">
+      {/* Celular: coluna que não rola a página — vídeo no topo (fixo), abas e
+          o painel da aba ativa ocupando o resto. Assim o vídeo nunca sai da
+          tela enquanto se lê o chat e o teclado só empurra o painel. No
+          desktop volta a ser a grade de três colunas. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-2 p-3 md:grid md:grid-cols-[200px_1fr_280px] md:gap-4 md:p-4">
+        <main
+          className={cn(
+            "order-1 shrink-0 md:order-2 md:min-h-0 md:shrink",
+            !nadaAtivo && "max-h-[50dvh] overflow-y-auto md:max-h-none md:overflow-visible"
+          )}
+        >
           {nadaAtivo ? (
-            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-4 p-10 text-center">
+            <div className="campo-poeira flex h-full flex-col items-center justify-center gap-4 p-6 text-center md:p-10">
               <p className="text-sm text-muted-foreground">
                 Ninguém está compartilhando a tela ainda.
               </p>
@@ -211,7 +244,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
                   }
                 />
               </div>
-              <p className="max-w-sm text-xs text-muted-foreground">
+              <p className="hidden max-w-sm text-xs text-muted-foreground md:block">
                 Pra levar o áudio de um vídeo (YouTube, por exemplo) sem
                 pegar o áudio do Discord, escolha compartilhar{" "}
                 <span className="text-foreground">uma aba do navegador</span>,
@@ -251,10 +284,55 @@ export function SalaClient({ codigo }: SalaClientProps) {
           )}
         </main>
 
-        {/* Altura fixa no celular: sem ela o chat cresce com as mensagens, a
-            lista nunca rola por dentro e o campo de digitar some pra baixo. */}
-        <aside className="order-3 flex h-[60dvh] flex-col md:h-auto md:min-h-0">
-          <h2 className="mb-2 border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase">
+        <div role="tablist" className="order-2 flex shrink-0 gap-5 border-b border-border/40 md:hidden">
+          {(
+            [
+              ["chat", "Chat", naoLidas],
+              ["participantes", `Participantes · ${participantes.length}`, 0],
+            ] as const
+          ).map(([id, rotulo, contagem]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={aba === id}
+              onClick={() => trocarAba(id)}
+              className={cn(
+                "-mb-px flex items-center gap-1.5 border-b-2 py-2 font-heading text-[11px] tracking-wide uppercase transition-colors",
+                aba === id
+                  ? "border-primary text-foreground"
+                  : "border-transparent text-muted-foreground"
+              )}
+            >
+              {rotulo}
+              {contagem > 0 && (
+                <span className="bg-primary px-1 text-[10px] leading-4 font-bold text-primary-foreground">
+                  {contagem > 99 ? "99+" : contagem}
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        <aside
+          className={cn(
+            "order-3 min-h-0 flex-1 overflow-y-auto md:order-1 md:block md:flex-none md:overflow-visible",
+            aba !== "participantes" && "hidden"
+          )}
+        >
+          <h2 className="mb-2 hidden border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
+            Participantes · {participantes.length}
+          </h2>
+          <ListaParticipantes participantes={participantes} euId={euId} />
+        </aside>
+
+        <aside
+          className={cn(
+            "order-3 min-h-0 flex-1 flex-col md:order-3 md:flex md:flex-none",
+            aba === "chat" ? "flex" : "hidden"
+          )}
+        >
+          <h2 className="mb-2 hidden border-b border-border/40 pb-1.5 font-heading text-[11px] tracking-wide text-muted-foreground uppercase md:block">
             Chat
           </h2>
           <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} />

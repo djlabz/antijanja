@@ -147,7 +147,7 @@ export function YoutubePlayer({
   }, [souControlador, pronto, onComando]);
 
   return (
-    <div className="group relative overflow-hidden bg-black">
+    <div className="group relative aspect-video overflow-hidden bg-black md:aspect-auto">
       <div ref={containerRef} className="h-full w-full" />
 
       <div className="pointer-events-none absolute inset-x-0 top-0 h-12 bg-gradient-to-b from-black/80 to-transparent" />
