@@ -306,7 +306,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
             >
               {rotulo}
               {contagem > 0 && (
-                <span className="bg-primary px-1 text-[10px] leading-4 font-bold text-primary-foreground">
+                <span className="bg-primary px-1 text-[11px] leading-4 font-bold text-primary-foreground">
                   {contagem > 99 ? "99+" : contagem}
                 </span>
               )}
