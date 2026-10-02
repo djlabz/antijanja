@@ -28,6 +28,11 @@ import { useSala } from "@/hooks/use-sala";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
 import { usePipAutomatico } from "@/hooks/use-pip-automatico";
+import {
+  diagnosticarCaptura,
+  explicarErroDeCaptura,
+  MENSAGEM_SEM_CAPTURA,
+} from "@/lib/captura-de-tela";
 import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import {
@@ -84,6 +89,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
   // fluxo antigo redirecionava pra "/" e perdia o código da sala, ou nem
   // isso — a página simplesmente não renderizava nada.
   const [quisConvidado, setQuisConvidado] = useState(false);
+  // Por que o último "Compartilhar tela" não funcionou (null = nada a dizer).
+  const [erroCaptura, setErroCaptura] = useState<string | null>(null);
   const pronto = hidratado && (!!nome || quisConvidado);
 
   const {
@@ -297,11 +304,17 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const totalDeTelas = telas.length + (streamLocal ? 1 : 0) + (fonteVideo ? 1 : 0);
   const nadaAtivo = totalDeTelas === 0;
   const sozinho = participantes.length <= 1;
+  // Só depois da hidratação (a sala não renderiza antes): `navigator` existe.
+  const diagnosticoCaptura = diagnosticarCaptura();
+  const podeCompartilhar = diagnosticoCaptura === "ok";
   async function compartilhar() {
+    setErroCaptura(null);
     try {
       await iniciarCompartilhamento();
-    } catch {
-      // usuário cancelou o seletor de tela do navegador — sem erro pra mostrar.
+    } catch (erro) {
+      // Cancelar o seletor não é erro (devolve null); o resto a pessoa precisa
+      // ver — antes tudo isso sumia e o botão parecia quebrado.
+      setErroCaptura(explicarErroDeCaptura(erro));
     }
   }
 
@@ -340,7 +353,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
             <MonitorX className="size-3.5" />
             <span className="hidden sm:inline">Parar compartilhamento</span>
           </Button>
-        ) : (
+        ) : podeCompartilhar ? (
           <div className="flex items-center gap-1">
             <Button size="sm" variant="outline" className="gap-1.5" onClick={compartilhar}>
               <MonitorUp className="size-3.5" />
@@ -368,7 +381,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
               </TooltipContent>
             </Tooltip>
           </div>
-        )}
+        ) : null}
 
         {estouCompartilhando && temAudio && (
           <Button
@@ -483,6 +496,18 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </div>
       )}
 
+      {erroCaptura && (
+        <div
+          role="alert"
+          className="mx-3 mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-destructive/10 px-4 py-3 text-sm md:mx-4"
+        >
+          <p className="min-w-0 flex-1 basis-72">{erroCaptura}</p>
+          <Button size="sm" variant="ghost" onClick={() => setErroCaptura(null)}>
+            Entendi
+          </Button>
+        </div>
+      )}
+
       {reconectando && (
         <div
           role="status"
@@ -526,10 +551,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
               {sozinho && <LinkConvite linkPublico={linkPublico} />}
 
               <div className="flex flex-wrap items-center justify-center gap-2">
-                <Button size="lg" onClick={compartilhar}>
-                  <MonitorUp className="size-4" />
-                  Compartilhar tela
-                </Button>
+                {podeCompartilhar && (
+                  <Button size="lg" onClick={compartilhar}>
+                    <MonitorUp className="size-4" />
+                    Compartilhar tela
+                  </Button>
+                )}
                 <AdicionarFonteDialog
                   aoAdicionar={adicionarFonteVideo}
                   trigger={
@@ -540,12 +567,18 @@ export function SalaClient({ codigo }: SalaClientProps) {
                   }
                 />
               </div>
-              <p className="hidden max-w-sm text-xs text-muted-foreground/80 md:block">
-                Pra levar o áudio de um vídeo (YouTube, por exemplo) sem pegar
-                o áudio do Discord, escolha compartilhar{" "}
-                <span className="text-foreground">uma aba do navegador</span>,
-                não a tela toda, quando o navegador perguntar.
-              </p>
+              {podeCompartilhar ? (
+                <p className="hidden max-w-sm text-xs text-muted-foreground md:block">
+                  Pra levar o áudio de um vídeo (YouTube, por exemplo) sem pegar
+                  o áudio do Discord, escolha compartilhar{" "}
+                  <span className="text-foreground">uma aba do navegador</span>,
+                  não a tela toda, quando o navegador perguntar.
+                </p>
+              ) : (
+                <p className="max-w-sm text-xs text-muted-foreground">
+                  {MENSAGEM_SEM_CAPTURA[diagnosticoCaptura as "inseguro" | "sem-suporte"]}
+                </p>
+              )}
             </div>
           ) : (
             <div
