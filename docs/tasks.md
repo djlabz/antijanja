@@ -67,12 +67,15 @@
       falham, TURN opcional por variável de ambiente, testes do servidor
       (`npm test`) — ADR 025.
 
+- [x] Botão "Janela flutuante" (PiP) no cabeçalho + PiP automático ao trocar
+      de aba (ADR 026). A "tela preta" reportada era o PortMaster no PC do
+      usuário — resolvido por fora do app (ADR 025).
+
 ## Próximos passos possíveis (não iniciados)
-- [ ] **Confirmar a tela preta do espectador num caso real** (reportado em
-      2026-10-02, celular e outro navegador): com o ADR 025 ele passa a ver
-      "Conectando…"/"Não foi possível conectar". Se for falha de rede, o
-      caminho é ligar um TURN (README). Testar também ICE restart de ponta a
-      ponta, que não foi possível no ambiente de teste.
+- [ ] **Ver o PiP automático abrir num uso real** (trocar de aba com uma
+      transmissão tocando) e conferir se também abre ao ir pra outro programa.
+- [ ] Testar o ICE restart de ponta a ponta (derrubar a rede por uns segundos
+      no meio de uma transmissão); não foi possível no ambiente de teste.
 - [ ] **Testar num celular de verdade** o que só foi simulado: tela cheia em
       paisagem, Wake Lock, PiP, menu de compartilhar nativo, teclado.
 - [ ] Servidor TURN: sem ele, quem assiste pelo 4G (NAT restritivo) pode não

@@ -30,6 +30,8 @@ Ignorados enquanto se digita num campo ou com um diálogo aberto.
   (`720p · 20 fps · 0,4 Mbps`) no hover.
 - Com 2+ telas: botão de destacar (as outras viram miniaturas).
 - Tela cheia: chat sobreposto; controles e cursor somem após 3s parado.
+- Janela flutuante (PiP): botão "Janela flutuante" no cabeçalho (ou `P`);
+  e abre sozinha ao trocar de aba, onde o navegador permite (Chrome/Edge).
 - Celular: duplo toque = tela cheia; tela cheia trava em paisagem (onde o
   navegador deixa); a tela do aparelho não apaga enquanto há transmissão.
 

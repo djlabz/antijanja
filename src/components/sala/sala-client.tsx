@@ -11,6 +11,7 @@ import {
   MonitorX,
   PanelLeftClose,
   PanelLeftOpen,
+  PictureInPicture2,
   SquarePlay as YoutubeIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -23,6 +24,7 @@ import {
 import { useSala } from "@/hooks/use-sala";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
+import { usePipAutomatico } from "@/hooks/use-pip-automatico";
 import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
 import {
   EVENTO_ABRIR_CHAT,
@@ -41,6 +43,23 @@ import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
+
+/**
+ * A tela "em foco" que casa com o seletor: a que está em tela cheia, senão a
+ * destacada, senão a primeira. É a mesma regra dos atalhos de teclado.
+ */
+function telaEmFoco(seletor: string) {
+  const cheia = document.fullscreenElement;
+  if (cheia?.hasAttribute("data-video-tile")) return cheia;
+  return (
+    document.querySelector(`[data-destacado] ${seletor}`) ?? document.querySelector(seletor)
+  );
+}
+
+/** Liga/desliga a janelinha flutuante da transmissão que estou assistindo. */
+function abrirPip() {
+  telaEmFoco("[data-video-tile][data-remoto]")?.dispatchEvent(new Event(EVENTO_PIP));
+}
 
 interface SalaClientProps {
   codigo: string;
@@ -106,6 +125,10 @@ export function SalaClient({ codigo }: SalaClientProps) {
     !!streamLocal || Object.keys(streamsRemotos).length > 0 || !!fonteVideo
   );
 
+  // Trocou de aba (ex.: foi responder no WhatsApp Web): a transmissão que
+  // está passando vira janelinha flutuante sozinha, onde o navegador deixa.
+  usePipAutomatico(Object.keys(streamsRemotos).length > 0, abrirPip);
+
   // Só desktop: esconde a lista de participantes pra dar mais largura ao
   // vídeo (vídeo + chat). `destaqueId` é a tela ampliada quando há 2+ (as
   // outras viram uma faixa de miniaturas); `null` = todas do mesmo tamanho.
@@ -121,14 +144,6 @@ export function SalaClient({ codigo }: SalaClientProps) {
   // de volume não conta como "digitando" — senão o atalho morreria depois
   // de mexer nele.
   useEffect(() => {
-    function tela(seletor: string) {
-      const cheia = document.fullscreenElement;
-      if (cheia?.hasAttribute("data-video-tile")) return cheia;
-      return (
-        document.querySelector(`[data-destacado] ${seletor}`) ??
-        document.querySelector(seletor)
-      );
-    }
     function aoTeclar(e: KeyboardEvent) {
       if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey) return;
       const alvo = e.target as HTMLElement | null;
@@ -141,13 +156,13 @@ export function SalaClient({ codigo }: SalaClientProps) {
       }
       switch (e.key.toLowerCase()) {
         case "f":
-          tela("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_TELA_CHEIA));
+          telaEmFoco("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_TELA_CHEIA));
           break;
         case "m":
-          tela("[data-video-tile][data-remoto]")?.dispatchEvent(new Event(EVENTO_MUDO));
+          telaEmFoco("[data-video-tile][data-remoto]")?.dispatchEvent(new Event(EVENTO_MUDO));
           break;
         case "p":
-          tela("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_PIP));
+          telaEmFoco("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_PIP));
           break;
         case "c":
           setCinema((atual) => !atual);
@@ -204,6 +219,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
   }
 
   const telas = Object.entries(streamsRemotos);
+  // Só depois da hidratação (a sala não renderiza antes): `document` existe.
+  const podeUsarPip = document.pictureInPictureEnabled;
   const souControladorDoVideo =
     !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
   const chatSobreposto = (
@@ -332,6 +349,19 @@ export function SalaClient({ codigo }: SalaClientProps) {
         <ConfigTransmissaoPopover
           aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
         />
+
+        {podeUsarPip && telas.length > 0 && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="hidden gap-1.5 md:inline-flex"
+            onClick={abrirPip}
+            title="Janela flutuante (P)"
+          >
+            <PictureInPicture2 className="size-3.5" />
+            Janela flutuante
+          </Button>
+        )}
 
         <div className="hidden items-center gap-0.5 md:flex">
           <BotaoCabecalho

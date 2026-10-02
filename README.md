@@ -113,7 +113,8 @@ Escopo da funcionalidade: `docs/features/000-sala-compartilhamento-tela.md`.
 
 ## Atalhos e recursos da sala
 Dentro da sala (no PC): `F` tela cheia · `M` mudo · `C` modo cinema · `P`
-janela flutuante (PiP) · `/` chat. Tem reações rápidas que flutuam sobre o
+janela flutuante (PiP, também no botão do cabeçalho; abre sozinha ao trocar
+de aba no Chrome/Edge) · `/` chat. Tem reações rápidas que flutuam sobre o
 vídeo, destaque de tela quando há mais de uma transmissão e aviso no título
 da aba quando chega mensagem. No celular o vídeo fica fixo no topo com abas
 Chat/Participantes. Detalhes em `docs/features/001-uso-no-celular-e-desktop.md`.

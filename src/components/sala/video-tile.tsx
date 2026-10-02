@@ -331,8 +331,9 @@ export function VideoTile({
                 Não foi possível conectar com {nome}
               </p>
               <p className="max-w-xs text-xs text-white/70">
-                A rede de um dos dois bloqueia a conexão direta (comum em 4G e redes de
-                trabalho). Quem hospeda pode ligar um servidor TURN — veja o README.
+                Algo na rede de um dos dois bloqueia a conexão direta: firewall, VPN ou
+                gerenciador de portas, 4G ou rede de trabalho. Desligue o que puder; se
+                não resolver, quem hospeda pode ligar um servidor TURN (veja o README).
               </p>
             </>
           ) : (
