@@ -15,6 +15,12 @@ interface ChatProps {
   onEnviar: (texto: string) => void;
   /** Manda uma reação que flutua sobre o vídeo (não entra no chat). */
   onReagir?: (emoji: string) => void;
+  /**
+   * Sem conexão com a sala (conectando/reconectando): o campo fica só leitura e
+   * o texto digitado espera. Mandar agora perderia a mensagem em silêncio — o
+   * servidor ignora quem ainda não entrou.
+   */
+  pausado?: boolean;
 }
 
 // Distância do fundo (px) até onde ainda conta como "estou lendo o fim" e a
@@ -51,7 +57,7 @@ function formatarHorario(em: number) {
 // `memo`: a sala re-renderiza a cada reação que chega (o estado das reações
 // mora no mesmo hook); sem isso o histórico inteiro do chat era redesenhado
 // junto, e com reações em enxurrada pesava.
-export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: ChatProps) {
+export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir, pausado }: ChatProps) {
   const [texto, setTexto] = useState("");
   const [reagindo, setReagindo] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -117,7 +123,7 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
 
   function enviar() {
     const limpo = texto.trim();
-    if (!limpo) return;
+    if (!limpo || pausado) return;
     onEnviar(limpo);
     setTexto("");
     colarNoFimRef.current = true;
@@ -235,8 +241,11 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
         <Input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Mensagem"
+          placeholder={pausado ? "Conectando…" : "Mensagem"}
           aria-label="Escreva uma mensagem"
+          // `readOnly` (e não `disabled`) pra o campo não perder o foco na
+          // queda e o que já foi digitado seguir lá quando a conexão voltar.
+          readOnly={pausado}
           maxLength={500}
           data-chat-input
           enterKeyHint="send"
@@ -246,6 +255,7 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
           type="submit"
           size="icon-lg"
           aria-label="Enviar mensagem"
+          disabled={pausado}
           // Tocar no botão tira o foco do campo e fecha o teclado do
           // celular a cada mensagem; segurar o foco deixa mandar várias.
           onPointerDown={(e) => e.preventDefault()}

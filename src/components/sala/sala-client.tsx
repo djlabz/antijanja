@@ -270,7 +270,13 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const souControladorDoVideo =
     !!fonteVideo && (fonteVideo.qualquerUmControla || fonteVideo.adicionadoPor === euId);
   const chatSobreposto = (
-    <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} onReagir={enviarReacao} />
+    <Chat
+      mensagens={mensagens}
+      euId={euId}
+      onEnviar={enviarMensagem}
+      onReagir={enviarReacao}
+      pausado={status !== "conectado"}
+    />
   );
   type Destaque = { ativo: boolean; alternar: () => void } | undefined;
   const itens: { id: string; render: (d: Destaque) => ReactNode }[] = [];
@@ -637,7 +643,13 @@ export function SalaClient({ codigo }: SalaClientProps) {
           <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
             Chat
           </h2>
-          <Chat mensagens={mensagens} euId={euId} onEnviar={enviarMensagem} onReagir={enviarReacao} />
+          <Chat
+            mensagens={mensagens}
+            euId={euId}
+            onEnviar={enviarMensagem}
+            onReagir={enviarReacao}
+            pausado={status !== "conectado"}
+          />
         </aside>
       </div>
     </div>

@@ -310,3 +310,12 @@
   - **Cabeçalho da sala dividido pelas interfaces pequenas**: `ControlesTransmissao` (parar/compartilhar, áudio, painel) e `BotoesAvisos` (cinema, som, sino, copiar link). Não dividi "por tamanho": extrair com ~28 props só mudaria o arquivo de lugar. `sala-client.tsx` 745 → 645 linhas.
 - **Limite honesto**: o cenário de reconexão cobre a camada do socket e do chat; o **reinício do ICE do vídeo** numa queda real continua sem teste (a captura falsa serve pra ver o vídeo chegar, não pra provar a recuperação). Os roteiros `e2e/` não rodam no CI.
 
+---
+
+## ADR 034 - Chat só envia quando a pessoa já está na sala
+- **Data**: 2026-10-02
+- **Contexto**: ao rodar o roteiro de reconexão contra o site publicado (mais lento que o local), a mensagem de um participante que acabava de entrar sumiu. Causa: o campo de chat aparece antes de o ack de `sala:entrar` chegar, e o servidor **ignora** `chat:enviar` de quem ainda não está na sala. O mesmo acontecia com texto digitado durante uma queda: o Socket.IO guarda o que se emite offline e manda ao reconectar **antes** do novo `sala:entrar`, então o servidor também descartava. Nos dois casos sem nenhum aviso.
+- **Decisão**: `useSala` mantém `naSalaRef` (verdadeiro só depois do ack e enquanto a conexão segue de pé; falso em `disconnect`/offline) e `enviarMensagem` não emite fora disso. O `Chat` recebe `pausado` (`status !== "conectado"`): o campo fica `readOnly` com o placeholder "Conectando…" e o botão de enviar desliga. `readOnly` e não `disabled` pra o foco e o texto já digitado ficarem lá quando a conexão voltar.
+- **Por que não enfileirar**: reenviar depois de reentrar exigiria ids e deduplicação no servidor; o grupo é pequeno e a queda curta, então travar o envio e dizer por quê basta.
+- **Verificado**: roteiro `e2e/chat-pausado.playwright.js` (campo só leitura e botão desligado na queda, mensagem sai normalmente depois) e `e2e/reconexao.playwright.js` de novo. Reações têm o mesmo vazamento em tese (ficam sem efeito fora da sala) e não foram tratadas: são só emojis.
+

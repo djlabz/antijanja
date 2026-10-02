@@ -299,3 +299,7 @@
 - Feito: roteiros `e2e/` (reconexão com queda real do WebSocket, estado Conectando), log de subida do servidor, `ultimasPendentes`, `ControlesTransmissao`/`BotoesAvisos`. 80 testes.
 - Pendente: reinício do ICE do vídeo numa queda real; celular/iPad de verdade; commits desta etapa ainda sem push.
 
+## 2026-10-02 (7) - Push da revisão com as skills + chat pausado (ADR 034)
+- Push de `534bc6a`: CI verde, Render publicou, histórico/motivo de recusa/reconexão validados em produção.
+- O roteiro de reconexão no site publicado achou um bug real: mensagem enviada antes do ack de `sala:entrar` (ou durante uma queda) era descartada pelo servidor sem aviso. Corrigido com `naSalaRef` + `pausado` no Chat (ADR 034) e roteiro `e2e/chat-pausado.playwright.js`.
+

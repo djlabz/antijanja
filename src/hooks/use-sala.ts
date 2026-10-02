@@ -119,6 +119,12 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   const conexoesRef = useRef<Conexoes | null>(null);
   const streamLocalRef = useRef<MediaStream | null>(null);
   const euIdRef = useRef<ParticipantId | null>(null);
+  // Já estou DENTRO da sala (o ack de `sala:entrar` chegou e a conexão segue de
+  // pé)? O servidor ignora chat/reação de quem ainda não entrou, e o Socket.IO
+  // guarda o que se emite offline pra mandar assim que reconecta — ANTES do
+  // novo `sala:entrar`. Sem esta guarda a mensagem digitada nesse intervalo
+  // sumia sem aviso.
+  const naSalaRef = useRef(false);
   const participantesRef = useRef<Participant[]>([]);
   const iceServersRef = useRef<IceServerConfig[]>([]);
 
@@ -210,6 +216,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         nomeEfetivo = resposta.nome;
         const euAntigo = euIdRef.current;
         euIdRef.current = resposta.euId;
+        naSalaRef.current = true;
         iceServersRef.current = resposta.iceServers ?? [];
         setEuId(resposta.euId);
         setMeuNome(resposta.nome); // pode diferir de `nome` (convidado: veio vazio, o servidor decidiu).
@@ -253,6 +260,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     // sozinho; e ao voltar pro app (celular) força a tentativa na hora em vez
     // de esperar o próximo backoff.
     socket.on("disconnect", (motivo) => {
+      naSalaRef.current = false;
       setStatus("conectando");
       if (motivo === "io server disconnect") socket.connect();
     });
@@ -267,10 +275,14 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     // segundos); o navegador avisa na hora. Serve pra mostrar "Reconectando"
     // sem demora e tentar voltar assim que a rede volta.
     function aoFicarOffline() {
+      naSalaRef.current = false;
       setStatus("conectando");
     }
     function aoFicarOnline() {
-      if (socket.connected) setStatus("conectado");
+      if (socket.connected) {
+        naSalaRef.current = euIdRef.current !== null;
+        setStatus("conectado");
+      }
       else socket.connect();
     }
     window.addEventListener("offline", aoFicarOffline);
@@ -382,7 +394,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   );
 
   const enviarMensagem = useCallback((texto: string) => {
-    if (!texto.trim()) return;
+    if (!texto.trim() || !naSalaRef.current) return;
     socketRef.current?.emit("chat:enviar", { texto });
   }, []);
 
