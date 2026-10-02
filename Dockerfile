@@ -27,4 +27,9 @@ COPY --from=builder /app ./
 
 EXPOSE 3000
 
+# O Docker marca o container como "unhealthy" se o app parar de responder
+# (o Render usa o `healthCheckPath` do render.yaml, este é pro Docker Compose).
+HEALTHCHECK --interval=30s --timeout=5s --start-period=60s --retries=3 \
+  CMD wget -q -O /dev/null http://127.0.0.1:3000/ || exit 1
+
 CMD ["npx", "tsx", "server.ts"]

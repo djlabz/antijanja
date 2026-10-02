@@ -136,7 +136,15 @@ function podeControlar(fonte: FonteVideo | null, id: ParticipantId) {
   return !!fonte && (fonte.qualquerUmControla || fonte.adicionadoPor === id);
 }
 
-export function registrarSinalizacao(io: ServidorSala): void {
+export interface OpcoesSinalizacao {
+  /** Onde vão os avisos de quem entra/sai (padrão: o terminal de quem hospeda). */
+  log?: (mensagem: string) => void;
+}
+
+export function registrarSinalizacao(
+  io: ServidorSala,
+  { log = console.log }: OpcoesSinalizacao = {}
+): void {
   io.on("connection", (socket) => {
     const dados: DadosSocket = {};
     const podeMandarChat = criarLimitador(8, 5000);
@@ -209,6 +217,11 @@ export function registrarSinalizacao(io: ServidorSala): void {
           io.sockets.sockets.get(antigo.id)?.disconnect(true);
         }
 
+        log(
+          `> [sala ${codigo}] ${nome} ${antigo ? "voltou" : "entrou"} (${
+            listarParticipantes(codigo).length
+          } na sala)`
+        );
         responder({
           ok: true,
           euId: socket.id,
@@ -359,6 +372,9 @@ export function registrarSinalizacao(io: ServidorSala): void {
         const codigo = salaAtual();
         if (!codigo) return;
         sairDaSala(codigo, socket.id);
+        log(
+          `> [sala ${codigo}] ${dados.nome} saiu (${listarParticipantes(codigo).length} restantes)`
+        );
         socket.to(codigo).emit("participante:saiu", socket.id);
         socket.to(codigo).emit("compartilhar:parou", socket.id);
 

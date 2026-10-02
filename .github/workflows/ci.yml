@@ -1,0 +1,37 @@
+# Roda a cada push na main e em todo pull request. A main vai direto pro
+# Render (ver render.yaml), então um push quebrado iria ao ar — aqui ele
+# falha antes. Mesmos comandos que se roda local: lint, testes, build, tipos.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Testes do servidor
+        run: npm test
+
+      # O build também gera os tipos do Next (`LayoutProps` etc.) que o `tsc`
+      # abaixo precisa — por isso vem antes dele.
+      - name: Build
+        run: npm run build
+
+      - name: Tipos (inclui server.ts e tests/)
+        run: npx tsc --noEmit

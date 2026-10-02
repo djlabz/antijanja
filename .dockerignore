@@ -6,5 +6,7 @@ node_modules
 docs
 README.md
 .claude
+.github
+tests
 .impeccable
 npm-debug.log*

@@ -28,7 +28,7 @@ const sala = () => `teste-${++contador}`;
 
 before(async () => {
   http = createServer();
-  registrarSinalizacao(new Server<EventosCliente, EventosServidor>(http));
+  registrarSinalizacao(new Server<EventosCliente, EventosServidor>(http), { log: () => {} });
   await new Promise<void>((ok) => http.listen(0, "127.0.0.1", ok));
   url = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
 });
