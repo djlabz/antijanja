@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,13 @@ import { gerarCodigoDeSala, normalizarCodigo } from "@/lib/gerar-codigo";
 export function EntrarForm() {
   const router = useRouter();
   const [codigo, setCodigo] = useState("");
+  const campoRef = useRef<HTMLInputElement>(null);
+
+  // Foco automático só onde tem teclado de verdade: no celular ele abriria o
+  // teclado virtual por cima da tela antes de a pessoa ler qualquer coisa.
+  useEffect(() => {
+    if (window.matchMedia("(hover: hover)").matches) campoRef.current?.focus();
+  }, []);
 
   return (
     <form
@@ -27,7 +34,7 @@ export function EntrarForm() {
     >
       <div className="flex flex-col gap-1.5">
         <label htmlFor="codigo" className="font-mono text-xs text-muted-foreground">
-          código&gt; <span className="opacity-70">(opcional)</span>
+          código&gt; (opcional)
         </label>
         <Input
           id="codigo"
@@ -35,7 +42,7 @@ export function EntrarForm() {
           value={codigo}
           onChange={(e) => setCodigo(e.target.value)}
           maxLength={20}
-          autoFocus
+          ref={campoRef}
         />
       </div>
 

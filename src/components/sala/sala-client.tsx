@@ -634,7 +634,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           <ReacoesFlutuantes reacoes={reacoes} />
         </main>
 
-        <div role="tablist" className="order-2 flex shrink-0 gap-1 rounded-full bg-white/[0.05] p-1 md:hidden">
+        <div role="group" aria-label="Painel" className="order-2 flex shrink-0 gap-1 rounded-full bg-white/[0.05] p-1 md:hidden">
           {(
             [
               ["chat", "Chat", naoLidas],
@@ -644,11 +644,10 @@ export function SalaClient({ codigo }: SalaClientProps) {
             <button
               key={id}
               type="button"
-              role="tab"
-              aria-selected={aba === id}
+              aria-pressed={aba === id}
               onClick={() => trocarAba(id)}
               className={cn(
-                "flex flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-heading text-xs tracking-wide uppercase transition-colors",
+                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-heading text-xs tracking-wide uppercase transition-colors",
                 aba === id
                   ? "bg-white/10 text-foreground"
                   : "text-foreground/65 hover:text-foreground"

@@ -17,7 +17,7 @@ export default function Home() {
           </h1>
           <p className="max-w-sm text-sm text-muted-foreground">
             Compartilhe sua tela com quem estiver na mesma sala. Sem
-            cadastro, sem servidor pago — roda direto do seu computador.
+            cadastro, sem servidor pago — o vídeo vai direto entre vocês.
           </p>
         </div>
 
