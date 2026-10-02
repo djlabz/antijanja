@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Roteiros do Playwright (corpo de função solto, colado no MCP): não são módulos.
+    "e2e/**",
     // Scripts de ferramentas de IA (skills, agentes) vendorizadas por agente
     // — não é código do app, não é nosso pra lintar.
     ".agent/**",

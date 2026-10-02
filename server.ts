@@ -22,6 +22,16 @@ const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOST ?? "0.0.0.0";
 const port = Number(process.env.PORT ?? 3000);
 
+// Tempo desde que o processo começou a subir. Existe por causa de um deploy no
+// Render em que a subida levou 6 minutos e a porta nunca foi detectada, sem
+// nenhuma pista no log de onde o tempo foi (ADR 033): com isso o próximo
+// travamento mostra se foi preparar o Next, abrir a porta ou a 1ª resposta.
+const inicio = Date.now();
+const desde = () => `${((Date.now() - inicio) / 1000).toFixed(1)}s`;
+console.log(
+  `> iniciando (node ${process.version}, NODE_ENV=${process.env.NODE_ENV ?? "?"}, porta ${port})`
+);
+
 const app = next({ dev, hostname, port, turbopack: true });
 const handle = app.getRequestHandler();
 
@@ -73,7 +83,25 @@ function iniciarTunelCloudflare(
 }
 
 app.prepare().then(() => {
-  const httpServer = createServer((req, res) => handle(req, res));
+  console.log(`> Next preparado em ${desde()}`);
+
+  // Só a primeira requisição (no Render, o health check): mostra quanto o app
+  // demorou pra responder pela primeira vez.
+  let primeira = true;
+  const httpServer = createServer((req, res) => {
+    if (primeira) {
+      primeira = false;
+      const t0 = Date.now();
+      res.on("finish", () =>
+        console.log(`> 1ª requisição (${req.url}) respondida ${res.statusCode} em ${Date.now() - t0}ms`)
+      );
+    }
+    handle(req, res);
+  });
+  httpServer.on("error", (erro) => {
+    console.error("> o servidor HTTP falhou:", erro);
+    process.exit(1);
+  });
 
   // Sem `cors`: o cliente é servido por este mesmo servidor (mesma origem),
   // então não há motivo pra deixar páginas de outros sites se conectarem.
@@ -86,6 +114,11 @@ app.prepare().then(() => {
   registrarSinalizacao(io);
 
   httpServer.listen(port, hostname, () => {
-    console.log(`> sinal rodando em http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${port}`);
+    console.log(
+      `> sinal rodando em http://${hostname === "0.0.0.0" ? "localhost" : hostname}:${port} (subiu em ${desde()})`
+    );
   });
+}).catch((erro) => {
+  console.error(`> falha ao preparar o Next depois de ${desde()}:`, erro);
+  process.exit(1);
 });
