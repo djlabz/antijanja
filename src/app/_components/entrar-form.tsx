@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { gerarCodigoDeSala } from "@/lib/gerar-codigo";
+import { gerarCodigoDeSala, normalizarCodigo } from "@/lib/gerar-codigo";
 
 /**
  * Só decide o código da sala aqui — o nome é sempre perguntado dentro da
@@ -21,7 +21,8 @@ export function EntrarForm() {
       className="flex w-full flex-col gap-4"
       onSubmit={(e) => {
         e.preventDefault();
-        router.push(`/sala/${(codigo || gerarCodigoDeSala()).trim().toLowerCase()}`);
+        // Tratado: `a/b` ou `oi?` quebrariam a URL (ver `normalizarCodigo`).
+        router.push(`/sala/${normalizarCodigo(codigo) || gerarCodigoDeSala()}`);
       }}
     >
       <div className="flex flex-col gap-1.5">

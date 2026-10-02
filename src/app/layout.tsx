@@ -60,9 +60,6 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
           grande, campo de nome com cursor piscando, sem cartão nem sombra.
           FORM: Fila de Créditos Cracktro, venceu "Painel de Controle
           Comunitário" no confronto de 6 desafiantes (seed 22df9449).
-          FINISH: unreviewed and undocumented is unfinished; this build ends
-          with the finish review, the verdict, DESIGN.md, and every shipping
-          raster carrying its provenance.
         */}
         <TooltipProvider delay={300}>{children}</TooltipProvider>
       </body>

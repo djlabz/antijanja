@@ -345,13 +345,17 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     const { resolucao, fps } = useConfigTransmissaoStore.getState();
 
-    const stream = await navigator.mediaDevices.getDisplayMedia({
+    // `selfBrowserSurface` é do Chrome e ainda não está no tipo do TypeScript.
+    const opcoes: DisplayMediaStreamOptions & { selfBrowserSurface?: "include" | "exclude" } = {
       // Limita resolução e fps ao que foi escolhido em "Qualidade da
       // transmissão" (padrão 1080p/30fps) — sem isso o navegador captura na
       // resolução nativa do monitor sem limite de quadros, o que sobrecarrega
       // o encoder e derruba frames (era a causa da transmissão travando
       // mesmo entre duas abas na mesma máquina). Ver docs/decisions.md (ADR 011).
       video: construirConstraintsVideo(resolucao, fps),
+      // Tira a aba do próprio Sinal do seletor do Chrome: compartilhá-la gera
+      // um espelho infinito (a tela mostrando a tela mostrando a tela...).
+      selfBrowserSurface: "exclude",
       // Sem processamento de voz: isso é áudio de vídeo/jogo, não microfone.
       // Cancelamento de eco e supressão de ruído tratam música/efeitos como
       // "ruído" e cortam pedaços — só atrapalham aqui. Ver docs/decisions.md
@@ -363,7 +367,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         noiseSuppression: false,
         autoGainControl: false,
       },
-    });
+    };
+    const stream = await navigator.mediaDevices.getDisplayMedia(opcoes);
 
     const trilhaVideo = stream.getVideoTracks()[0];
     if (trilhaVideo) {

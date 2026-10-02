@@ -12,8 +12,10 @@ interface EscolherNomeSalaProps {
 }
 
 /**
- * Tela mostrada quando alguém abre o link de uma sala sem ter passado pela
- * home (então não tem nome salvo) — antes disso a pessoa caía num redirect
+ * Tela mostrada quando alguém entra numa sala sem ter nome salvo: quem abriu
+ * o link de um convite e também quem acabou de criar a sala na home (por isso
+ * o texto é neutro — "você foi convidado" estava errado pro anfitrião).
+ * Antes disso a pessoa caía num redirect
  * pra "/" que perdia o código da sala e, dependendo do momento, deixava a
  * tela preta parada (bug real reportado, ver docs/decisions.md ADR 014 e,
  * pra causa raiz do "preso na tela preta", ADR 016).
@@ -31,11 +33,10 @@ export function EscolherNomeSala({ codigo, aoEscolherNome, aoEscolherConvidado }
 
       <div className="relative flex flex-col items-center gap-2 text-center">
         <h1 className="font-heading text-xl tracking-wide text-dust-4">
-          VOCÊ FOI CONVIDADO PRA SALA{" "}
-          <span className="font-mono text-primary">{codigo}</span>
+          ENTRAR NA SALA <span className="font-mono text-primary">{codigo}</span>
         </h1>
         <p className="max-w-sm text-sm text-muted-foreground">
-          Escolha um nome pra entrar, ou continue como convidado.
+          Como você quer ser chamado? Ou entre como convidado.
         </p>
       </div>
 

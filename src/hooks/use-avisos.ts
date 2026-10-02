@@ -60,6 +60,22 @@ export function useAvisos({ mensagens, participantes, euId }: AvisosProps) {
     somRef.current = somLigado;
   }, [somLigado]);
 
+  // Navegadores só liberam áudio depois de um gesto da pessoa. Destravar no
+  // primeiro toque/clique na página faz o primeiro aviso já sair com som, em
+  // vez de mudo (antes só destravava ao ligar o sino).
+  useEffect(() => {
+    function destravar() {
+      try {
+        contextoAudio ??= new AudioContext();
+        if (contextoAudio.state === "suspended") contextoAudio.resume().catch(() => {});
+      } catch {
+        // sem Web Audio — fica só o título.
+      }
+    }
+    document.addEventListener("pointerdown", destravar, { once: true });
+    return () => document.removeEventListener("pointerdown", destravar);
+  }, []);
+
   // O título-base é lido na hora (tirando o "(n) " que a gente mesmo põe),
   // não guardado no mount: numa navegação do Next o `<title>` pode ainda
   // estar vazio nesse instante, e o aviso ficaria só "(3)".
