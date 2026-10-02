@@ -280,3 +280,18 @@
 - **Fora do pacote de propósito**: texto de 12px em quase todo o secundário (é o tom do DESIGN.md), controles do vídeo só no hover (têm `focus-within` e ficam fixos no toque).
 - **Limite honesto**: medido em emulação do navegador embutido (que tem `getDisplayMedia`, então o caso "celular sem a API" foi simulado removendo-a). Não testado: celular/iPad de verdade, leitor de tela, o ganho de performance das reações, o cabeçalho com o painel do transmissor + áudio + janela flutuante juntos em tablet.
 
+---
+
+## ADR 032 - Chat com histórico, links clicáveis e estado "Conectando"
+- **Data**: 2026-10-02
+- **Contexto**: quem entrava depois (ou reconectava) não via o que foi dito; links colados no chat não eram clicáveis; o histórico do cliente crescia sem limite porque o contador de não lidas e `useAvisos` contavam pelo tamanho da lista; e a sala dizia "Você está sozinho por aqui" enquanto ainda conectava (lista de participantes vazia por não ter chegado).
+- **Decisão**:
+  1. **Histórico no servidor**: `rooms.ts` guarda as últimas 50 mensagens por sala (`MAX_HISTORICO`) com a **sessão** de quem escreveu, só em memória (ADR 001: some quando a sala esvazia ou o servidor reinicia). O ack de `sala:entrar` manda `mensagens`. Toda `ChatMessage` ganhou `id` (numerado pela sala; avisos locais usam ids negativos).
+  2. **Reconhecer as minhas mensagens após uma queda**: `de` é o id do socket, que muda a cada reconexão. `historicoPara()` reescreve `de` das mensagens da mesma sessão pro id novo, e o cliente (`mesclarHistorico`) faz o mesmo na lista que já tinha, só acrescentando o que faltava (por id). A cor de quem escreveu continua derivada do id, então as mensagens antigas de quem reconectou mudam de cor — aceito.
+  3. **Histórico não apita**: o que vem do histórico na primeira entrada é `antiga` (fora de "não lidas" e das notificações); o que chega numa reconexão (dito enquanto eu estava fora) conta normalmente.
+  4. **Contagem por total**: `useSala` expõe `totalMensagens` (só cresce) e a lista é cortada nas últimas 200; "não lidas" e `useAvisos` olham o fim da lista pelo total. Chaves da lista pelo `id`.
+  5. **Links**: `partirEmLinks` (`links-chat.ts`) só reconhece `http(s)`, valida com `URL`, tira pontuação final; o React desenha `<a target=_blank rel="noopener noreferrer nofollow">`. Nunca HTML cru.
+  6. **"Conectando à sala…"** (`conectando-sala.tsx`) enquanto o primeiro ack não chega (`euId === null`), com aviso depois de 8s explicando que um servidor de hospedagem gratuita pode estar acordando. Na primeira visita a própria hospedagem (Render) já segura a página até acordar; o aviso cobre rede lenta e o caso de o servidor dormir com a aba aberta.
+- **Privacidade**: quem entra numa sala vê as últimas 50 mensagens. A sala trancada (ADR 027) continua sendo o jeito de impedir isso; o histórico não vai pra disco nem pra fora do processo.
+- **Limite honesto**: testado no navegador com duas abas (histórico recebido, link clicável, estado "Conectando" com o socket bloqueado); não vi uma reconexão real depois de uma queda de rede — só o servidor (testes de integração) e a regra de mesclagem (teste unitário) a cobrem.
+

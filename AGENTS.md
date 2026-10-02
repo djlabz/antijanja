@@ -34,7 +34,7 @@ chama Sinal — era "Tela Junto" antes do redesign visual (ADR 018 em
 - `src/hooks/use-pip-automatico.ts` → PiP que abre sozinho ao trocar de aba (Media Session).
 - `.github/workflows/ci.yml` → lint, testes, build e tsc em todo push na `main` (a `main` vai pro Render).
 - `tests/` → testes de integração do servidor (`npm test`, Node `--test` + `tsx`); suba só o Socket.IO, sem Next.
-- `src/lib/captura-de-tela.ts` → diagnóstico/erros do `getDisplayMedia` (sem DOM, testável): por que a captura não funciona e o que dizer; `reacoes-store.ts` → reações flutuantes fora do React (só `ReacoesFlutuantes` assina); `src/hooks/use-media-query.ts`.
+- `src/lib/captura-de-tela.ts` → diagnóstico/erros do `getDisplayMedia` (sem DOM, testável): por que a captura não funciona e o que dizer; `reacoes-store.ts` → reações flutuantes fora do React (só `ReacoesFlutuantes` assina); `src/hooks/use-media-query.ts`; `links-chat.ts` (links http/https no chat) e `historico-chat.ts` (limite de 200 e mesclagem do histórico do servidor); `conectando-sala.tsx` (estado antes do 1º ack).
 - `src/lib/conexoes-webrtc.ts` → as `RTCPeerConnection` da sala (abrir, fila de sinais, ICE restart, estado por conexão), sem React; `use-sala.ts` só liga isso ao socket.
 - `src/lib/socket-events.ts` → contrato de eventos Socket.IO compartilhado entre cliente e servidor (import relativo nos dois lados, sem depender do alias `@/`).
 - `src/hooks/use-sala.ts` → toda a lógica de uma sala: sinalização + WebRTC mesh.

@@ -54,6 +54,7 @@ import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 import { StatusTransmissao } from "./status-transmissao";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
+import { ConectandoSala } from "./conectando-sala";
 
 /**
  * A tela "em foco" que casa com o seletor: a que está em tela cheia, senão a
@@ -584,7 +585,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
             !nadaAtivo && "max-h-[50dvh] overflow-y-auto md:max-h-none md:overflow-visible"
           )}
         >
-          {nadaAtivo ? (
+          {euId === null ? (
+            <ConectandoSala />
+          ) : nadaAtivo ? (
             <div className="campo-poeira flex h-full flex-col items-center justify-center gap-6 rounded-3xl bg-white/[0.03] p-6 text-center md:p-10">
               <div className="flex flex-col items-center gap-2">
                 <h2 className="text-xl font-semibold tracking-tight text-foreground">

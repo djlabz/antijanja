@@ -86,6 +86,10 @@
       silêncio, contraste, alvos de 44px, tablet, motivo do erro de entrada,
       convidado conectando duas vezes, reações fora do estado da sala.
 
+- [x] Chat: histórico das últimas 50 mensagens pra quem entra/reconecta,
+      links clicáveis, lista limitada a 200 no cliente (contagem por total) e
+      "Conectando à sala…" no lugar de "Você está sozinho" (ADR 032).
+
 ## Próximos passos possíveis (não iniciados)
 - [ ] Ver a sala num **iPad/celular de verdade** (cabeçalho em duas linhas,
       alvos de 44px, captura sem suporte) e com **leitor de tela**; medir o
@@ -99,9 +103,6 @@
       cartão de prévia no WhatsApp com uma URL pública de verdade.
 - [ ] Ver a notificação do Windows e o painel do transmissor com 3+
       espectadores num uso real.
-- [ ] Limitar o histórico do chat em memória: não foi feito porque o contador
-      de não lidas e o `useAvisos` contam por tamanho da lista — precisa
-      trocar por ids de mensagem antes.
 - [ ] Docker rodar como usuário `node` (não testado aqui: `npx tsx` precisa de
       cache gravável).
 - [ ] Ajuste automático do bitrate pelo número de espectadores (precisa o
@@ -114,9 +115,6 @@
       paisagem, Wake Lock, PiP, menu de compartilhar nativo, teclado.
 - [ ] Servidor TURN: sem ele, quem assiste pelo 4G (NAT restritivo) pode não
       receber o vídeo (ADR 003). Só vale se o teste real mostrar o problema.
-- [ ] Guardar as últimas ~50 mensagens do chat no servidor (em memória) pra
-      quem entra depois ou reconecta não perder o que foi dito.
-- [ ] Links clicáveis no chat.
 - [ ] Zoom com pinça no vídeo (celular).
 - [ ] Instalar como app (PWA).
 - [ ] Limpar o cabeçalho no celular (vários ícones sem texto; "Compartilhar

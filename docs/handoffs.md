@@ -287,3 +287,9 @@
 - Pendente: ver tudo num celular/iPad de verdade; ADR 031 lista o que não foi verificado.
 - O usuário adicionou skills em `.claude/skills/` (frontend-design, webapp-testing, TDD, systematic-debugging, karpathy-guidelines, grill-me, etc.); ainda não usei todas — só o TDD no helper de captura.
 
+## 2026-10-02 (5) - Push da auditoria e chat com histórico (ADR 032)
+- Push dos 7 commits (ADR 030/031): CI do GitHub passou (`c7aa043`) e o Render já serve a versão nova (conferido pelo texto da home).
+- Chat: histórico de 50 mensagens no servidor, links clicáveis, lista de 200 no cliente com contagem por total, estado "Conectando à sala…". 76 testes.
+- Decisão sobre o Render: não criei tela "acordando" separada; na 1ª visita é a hospedagem que segura a página. O aviso fica no estado Conectando (8s).
+- Pendente: TURN (precisa de credenciais do usuário), testar em celular/iPad de verdade, testes automáticos no navegador (skill webapp-testing).
+
