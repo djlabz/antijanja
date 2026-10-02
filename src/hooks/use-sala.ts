@@ -7,6 +7,7 @@ import {
   type Conexoes,
   type EstadoConexao,
   type EstatisticasVideo,
+  type SaudeSaida,
 } from "@/lib/conexoes-webrtc";
 import { construirConstraintsVideo } from "@/lib/qualidade-transmissao";
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
@@ -19,7 +20,7 @@ import type {
   ParticipantId,
 } from "@/lib/socket-events";
 
-export type { EstadoConexao, EstatisticasVideo };
+export type { EstadoConexao, EstatisticasVideo, SaudeSaida };
 
 type Status = "conectando" | "conectado" | "erro";
 
@@ -334,6 +335,12 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     []
   );
 
+  /** Como está cada conexão de saída (quem transmite acompanha quem recebe). */
+  const lerSaudeTransmissao = useCallback(
+    async () => (await conexoesRef.current?.saude()) ?? [],
+    []
+  );
+
   const enviarMensagem = useCallback((texto: string) => {
     if (!texto.trim()) return;
     socketRef.current?.emit("chat:enviar", { texto });
@@ -462,6 +469,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     enviarComandoVideo,
     enviarMensagem,
     lerEstatisticasEntrada,
+    lerSaudeTransmissao,
     reacoes,
     enviarReacao,
     iniciarCompartilhamento,

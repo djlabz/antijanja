@@ -26,6 +26,7 @@ import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
 import { usePipAutomatico } from "@/hooks/use-pip-automatico";
 import { useUsuarioStore, useUsuarioHidratado } from "@/store/usuario-store";
+import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import {
   EVENTO_ABRIR_CHAT,
   EVENTO_MUDO,
@@ -41,6 +42,7 @@ import { CopiarLinkButton } from "./copiar-link-button";
 import { LinkConvite } from "./link-convite";
 import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
+import { StatusTransmissao } from "./status-transmissao";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
 
@@ -70,6 +72,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const nome = useUsuarioStore((s) => s.nome);
   const hidratado = useUsuarioHidratado();
   const definirNome = useUsuarioStore((s) => s.definirNome);
+  const bitrateMbps = useConfigTransmissaoStore((s) => s.bitrateMbps);
 
   // Quem clica em "Continuar como convidado" ainda não tem `nome` (é o
   // próprio servidor que decide "Convidado N" — ver docs/decisions.md, ADR
@@ -99,6 +102,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     enviarComandoVideo,
     enviarMensagem,
     lerEstatisticasEntrada,
+    lerSaudeTransmissao,
     reacoes,
     enviarReacao,
     iniciarCompartilhamento,
@@ -342,12 +346,21 @@ export function SalaClient({ codigo }: SalaClientProps) {
           </div>
         )}
 
+        {estouCompartilhando && (
+          <StatusTransmissao
+            ler={lerSaudeTransmissao}
+            nomeDe={(id) => participantes.find((p) => p.id === id)?.nome ?? "Participante"}
+            bitrateMbps={bitrateMbps}
+          />
+        )}
+
         {!fonteVideo && (
           <AdicionarFonteDialog trigger={botaoAdicionarVideo} aoAdicionar={adicionarFonteVideo} />
         )}
 
         <ConfigTransmissaoPopover
           aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
+          espectadores={participantes.filter((p) => p.id !== euId).length}
         />
 
         {podeUsarPip && telas.length > 0 && (

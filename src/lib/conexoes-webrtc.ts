@@ -34,6 +34,41 @@ export interface EstatisticasVideo {
   em: number;
 }
 
+/** Por que o encoder está entregando menos do que podia (`qualityLimitationReason`). */
+export type LimiteEnvio = "none" | "bandwidth" | "cpu" | "other";
+
+/**
+ * Como está a conexão de SAÍDA com um espectador — o que quem transmite
+ * precisa pra saber se alguém está com problema (só o espectador via isso).
+ */
+export interface SaudeSaida {
+  id: ParticipantId;
+  estado: EstadoConexao;
+  limite: LimiteEnvio;
+  /** Total de bytes de vídeo enviados e o instante da leitura — compare duas leituras pro bitrate. */
+  bytes: number;
+  em: number;
+  fps: number;
+  altura: number;
+}
+
+/** `closed` não tem o que mostrar (a conexão está sendo descartada). */
+function estadoDe(estado: RTCPeerConnectionState): EstadoConexao | null {
+  switch (estado) {
+    case "new":
+    case "connecting":
+      return "conectando";
+    case "connected":
+      return "conectado";
+    case "disconnected":
+      return "instavel";
+    case "failed":
+      return "falhou";
+    default:
+      return null;
+  }
+}
+
 interface Opcoes {
   enviarSinal: (
     para: ParticipantId,
@@ -146,21 +181,8 @@ export function criarConexoes(opcoes: Opcoes) {
     pc.ontrack = (evento) => opcoes.aoReceberStream(de, evento.streams[0]);
     pc.onconnectionstatechange = () => {
       if (entrada.get(de) !== pc) return;
-      switch (pc.connectionState) {
-        case "new":
-        case "connecting":
-          opcoes.aoMudarEstadoEntrada(de, "conectando");
-          break;
-        case "connected":
-          opcoes.aoMudarEstadoEntrada(de, "conectado");
-          break;
-        case "disconnected":
-          opcoes.aoMudarEstadoEntrada(de, "instavel");
-          break;
-        case "failed":
-          opcoes.aoMudarEstadoEntrada(de, "falhou");
-          break;
-      }
+      const estado = estadoDe(pc.connectionState);
+      if (estado) opcoes.aoMudarEstadoEntrada(de, estado);
     };
     return pc;
   }
@@ -283,9 +305,41 @@ export function criarConexoes(opcoes: Opcoes) {
     return foto;
   }
 
+  /** Estado e vazão de cada conexão de saída (quem transmite acompanha quem recebe). */
+  async function saude(): Promise<SaudeSaida[]> {
+    return Promise.all(
+      [...saida].map(async ([id, { pc }]) => {
+        const leitura: SaudeSaida = {
+          id,
+          estado: estadoDe(pc.connectionState) ?? "conectando",
+          limite: "none",
+          bytes: 0,
+          em: 0,
+          fps: 0,
+          altura: 0,
+        };
+        try {
+          (await pc.getStats()).forEach((r) => {
+            if (r.type === "outbound-rtp" && (r.kind ?? r.mediaType) === "video") {
+              leitura.limite = (r.qualityLimitationReason as LimiteEnvio) ?? "none";
+              leitura.bytes = r.bytesSent ?? 0;
+              leitura.em = r.timestamp;
+              leitura.fps = r.framesPerSecond ?? 0;
+              leitura.altura = r.frameHeight ?? 0;
+            }
+          });
+        } catch {
+          // conexão fechando no meio da leitura — fica com o estado.
+        }
+        return leitura;
+      })
+    );
+  }
+
   return {
     ofertar,
     tratarSinal,
+    saude,
     esquecer,
     fecharEntrada,
     fecharSaidas,

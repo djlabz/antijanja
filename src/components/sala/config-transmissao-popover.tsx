@@ -29,9 +29,11 @@ import {
 interface ConfigTransmissaoPopoverProps {
   /** Chamado depois de qualquer mudança — pra reaplicar na hora se já estiver compartilhando. */
   aoMudar?: () => void;
+  /** Quantas pessoas receberiam a tela (todas as outras da sala). */
+  espectadores?: number;
 }
 
-export function ConfigTransmissaoPopover({ aoMudar }: ConfigTransmissaoPopoverProps) {
+export function ConfigTransmissaoPopover({ aoMudar, espectadores = 0 }: ConfigTransmissaoPopoverProps) {
   // Controlado e desmontado quando fechado — mesmo bug visto no
   // CompartilharSalaDialog (ADR 012 em docs/decisions.md): sem isso, fechar
   // deixa o painel visualmente preso na tela (aqui não trava clique porque
@@ -127,6 +129,16 @@ export function ConfigTransmissaoPopover({ aoMudar }: ConfigTransmissaoPopoverPr
               </SelectContent>
             </Select>
           </div>
+
+          {/* O bitrate vale POR espectador (cada um recebe uma conexão só
+              sua): com 6 pessoas, 4 Mbps viram 24 Mbps de envio. */}
+          {espectadores > 0 && (
+            <p className="text-xs text-muted-foreground">
+              {bitrateMbps === null
+                ? `Sem limite: o envio da sua internet divide entre ${espectadores} ${espectadores === 1 ? "pessoa" : "pessoas"}.`
+                : `Cada pessoa recebe uma conexão própria: com ${espectadores} ${espectadores === 1 ? "pessoa" : "pessoas"}, seu envio pode chegar a ${espectadores * bitrateMbps} Mbps.`}
+            </p>
+          )}
         </div>
       </PopoverContent>
       )}
