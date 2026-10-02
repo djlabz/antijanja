@@ -93,6 +93,9 @@
 - [x] Revisão com as skills (ADR 033): log de subida do servidor, roteiros de
       reconexão em `e2e/`, regra única de pendentes, cabeçalho dividido.
 
+- [x] Sugestão automática de baixar a qualidade, salas recentes na home e
+      conferência do movimento reduzido (ADR 035).
+
 ## Próximos passos possíveis (não iniciados)
 - [ ] Ver a sala num **iPad/celular de verdade** (cabeçalho em duas linhas,
       alvos de 44px, captura sem suporte) e com **leitor de tela**; medir o
@@ -110,6 +113,10 @@
       cache gravável).
 - [ ] Ajuste automático do bitrate pelo número de espectadores (precisa o
       usuário informar o upload dele; o app não consegue medir sozinho).
+      *Parcialmente atendido:* o app agora SUGERE baixar quando vê alguém
+      limitado (ADR 035); não aplica sozinho.
+- [ ] QR code no diálogo de convite, apontador na tela e contagem regressiva
+      sincronizada: oferecidos e recusados pelo usuário em 2026-10-02.
 - [ ] **Ver o PiP automático abrir num uso real** (trocar de aba com uma
       transmissão tocando) e conferir se também abre ao ir pra outro programa.
 - [ ] Testar o ICE restart de ponta a ponta (derrubar a rede por uns segundos

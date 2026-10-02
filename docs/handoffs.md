@@ -303,3 +303,8 @@
 - Push de `534bc6a`: CI verde, Render publicou, histórico/motivo de recusa/reconexão validados em produção.
 - O roteiro de reconexão no site publicado achou um bug real: mensagem enviada antes do ack de `sala:entrar` (ou durante uma queda) era descartada pelo servidor sem aviso. Corrigido com `naSalaRef` + `pausado` no Chat (ADR 034) e roteiro `e2e/chat-pausado.playwright.js`.
 
+## 2026-10-02 (8) - Sugestão de qualidade, salas recentes, movimento reduzido (ADR 035)
+- O usuário escolheu 3 das 6 ideias novas: sugerir baixar a qualidade (1), só "últimas salas" do item 3, e `prefers-reduced-motion` (5). Recusou o resto (QR code, apontador, contagem regressiva, chat com "digitando"/emoji).
+- Testes novos: `sugestao-qualidade` (7) e `salas-recentes` (9); 96 no total. Roteiros novos em `e2e/`: `sugestao-qualidade` (aceitar/dispensar, com `qualityLimitationReason` simulado) e `movimento-reduzido`.
+- A sugestão só foi vista com o sinal simulado; falta ver num upload ruim de verdade.
+

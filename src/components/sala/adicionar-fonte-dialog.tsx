@@ -115,7 +115,9 @@ export function AdicionarFonteDialog({ trigger, aoAdicionar }: AdicionarFonteDia
 
             <Button type="submit" disabled={!link.trim() || enviando} className="gap-1.5">
               {enviando && <Loader2 className="size-4 animate-spin" />}
-              Adicionar
+              {/* O texto muda junto com o ícone: com "reduzir movimento" o ícone
+                  não gira e só ele não diria que está enviando. */}
+              {enviando ? "Adicionando…" : "Adicionar"}
             </Button>
           </form>
         </DialogContent>

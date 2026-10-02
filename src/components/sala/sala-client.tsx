@@ -16,6 +16,7 @@ import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
 import { usePipAutomatico } from "@/hooks/use-pip-automatico";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { lembrarSalaNesteAparelho } from "@/hooks/use-salas-recentes";
 import { ultimasPendentes } from "@/lib/historico-chat";
 import { useSaudeTransmissao } from "@/hooks/use-saude-transmissao";
 import { useSugestaoQualidade } from "@/hooks/use-sugestao-qualidade";
@@ -225,6 +226,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
   }, [alternarCinema]);
+
+  // Entrou de verdade (o servidor aceitou): vira "sala recente" na home deste
+  // aparelho. Só depois do ack — recusada (trancada, nome em uso) não conta.
+  useEffect(() => {
+    if (euId !== null) lembrarSalaNesteAparelho(codigo);
+  }, [euId, codigo]);
 
   // Guarda o nome final (digitado ou "Convidado N" atribuído pelo
   // servidor) pra sobreviver a um refresh desta mesma aba.

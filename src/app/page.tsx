@@ -1,4 +1,5 @@
 import { EntrarForm } from "./_components/entrar-form";
+import { SalasRecentes } from "./_components/salas-recentes";
 
 export default function Home() {
   return (
@@ -22,6 +23,7 @@ export default function Home() {
         </div>
 
         <EntrarForm />
+        <SalasRecentes />
       </div>
     </main>
   );
