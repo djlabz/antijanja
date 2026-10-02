@@ -17,7 +17,15 @@ const HOSTS_YOUTUBE = new Set([
   "music.youtube.com",
 ]);
 
+/** Ids reais do YouTube só têm letras, números, `_` e `-`. */
+export const ID_YOUTUBE_VALIDO = /^[A-Za-z0-9_-]{1,64}$/;
+
 export function extrairYoutube(link: string): YoutubeRef | null {
+  const ref = extrairBruto(link);
+  return ref && ID_YOUTUBE_VALIDO.test(ref.id) ? ref : null;
+}
+
+function extrairBruto(link: string): YoutubeRef | null {
   let url: URL;
   try {
     url = new URL(link.trim());

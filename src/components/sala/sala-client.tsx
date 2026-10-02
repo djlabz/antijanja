@@ -71,6 +71,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     estouCompartilhando,
     streamLocal,
     streamsRemotos,
+    estadosConexao,
     linkPublico,
     fonteVideo,
     ultimoComandoVideo,
@@ -190,7 +191,14 @@ export function SalaClient({ codigo }: SalaClientProps) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-destructive">{erro}</p>
-        <Button onClick={() => router.push("/")}>Voltar</Button>
+        <div className="flex gap-2">
+          {/* Recarregar refaz a entrada do zero: serve pra "nome em uso" que
+              some sozinho em segundos e pra queda de rede passageira. */}
+          <Button variant="outline" onClick={() => window.location.reload()}>
+            Tentar de novo
+          </Button>
+          <Button onClick={() => router.push("/")}>Voltar</Button>
+        </div>
       </div>
     );
   }
@@ -236,6 +244,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           stream={stream}
           nome={participantes.find((p) => p.id === id)?.nome ?? "Participante"}
           participanteId={id}
+          conexao={estadosConexao[id]}
           estatisticasDe={lerEstatisticasEntrada}
           chat={chatSobreposto}
           destaque={d}
@@ -294,9 +303,15 @@ export function SalaClient({ codigo }: SalaClientProps) {
               <span className="hidden sm:inline">Compartilhar tela</span>
             </Button>
             <Tooltip>
+              {/* Botão de verdade (não um `span`): assim o teclado alcança a
+                  dica, e o foco é o que abre o tooltip. */}
               <TooltipTrigger
                 render={
-                  <span className="hidden size-6 items-center justify-center text-muted-foreground sm:flex" />
+                  <button
+                    type="button"
+                    aria-label="Dica sobre áudio ao compartilhar"
+                    className="hidden size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:flex"
+                  />
                 }
               >
                 <Info className="size-3.5" />

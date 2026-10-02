@@ -181,7 +181,9 @@ export function YoutubePlayer({
         <button
           type="button"
           onClick={onRemover}
-          className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
+          // Sem hover no toque: fica sempre visível lá (e com área de 44px),
+          // senão quem controla o vídeo não conseguia removê-lo pelo celular.
+          className="absolute top-2 right-2.5 flex size-7 items-center justify-center text-white/80 opacity-0 transition-opacity [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] group-hover:opacity-100 hover:text-white focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring [@media(hover:none)]:size-11 [@media(hover:none)]:opacity-100"
           aria-label="Remover vídeo"
         >
           <X className="size-4" />

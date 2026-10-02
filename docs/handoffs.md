@@ -260,3 +260,10 @@
 - **Pendências**: ver "Próximos passos" em `docs/tasks.md` (o principal é o
   teste em celular de verdade).
 
+## 2026-10-02 - Auditoria, servidor blindado, reconexão por sessão, aviso de falha de conexão
+- Pedido: usar as skills disponíveis pra analisar o app e implementar as melhorias, na ordem de prioridade. Detalhes e motivos no **ADR 025**.
+- **Feito**: validação de tudo que chega no servidor (`src/server/sinalizacao.ts`, extraído do `server.ts`); `sessao` por aba pra reconhecer a mesma pessoa voltando; `src/lib/conexoes-webrtc.ts` (fila de sinais, `origem` nos candidatos, ICE restart, estado por conexão); `VideoTile` mostra conectando/instável/falhou e trata autoplay barrado; TURN opcional por env; botões de 44px no toque; botão de remover vídeo visível no celular; testes (`npm test`, 24 casos).
+- **Relato do usuário no meio do trabalho**: "tela preta pra quem assiste (celular e outro navegador); quem transmite se vê". **Não reproduzi a causa**: no ambiente de teste nem duas `RTCPeerConnection` na mesma aba fecharam (com ou sem STUN), e a versão de antes da sessão (`b9b6e0f`) falhou igual — ou seja, não é regressão dos commits de hoje, é rede/ambiente. Mas o quadro preto sem explicação era um defeito real do app (ninguém acompanhava o estado da conexão); agora aparece o motivo. Hipóteses a checar no caso real: NAT restritivo/4G sem TURN, firewall/VPN no PC de quem transmite bloqueando UDP, e autoplay com som barrado (agora tratado).
+- **Armadilhas**: o `tsx watch` do `npm run dev` **reinicia o servidor** ao editar `server.ts`, `src/server/*` ou `src/lib/*` (só `app`, `components`, `hooks`, `store` ficam de fora) — quem testa com o link público do Cloudflare muda de URL a cada reinício (o túnel é refeito) e todo mundo cai. Pra desfazer um teste com versão antiga: `git stash` + `git checkout <commit> -- src server.ts` e depois `git checkout HEAD -- src server.ts` + `git stash pop`. O hook de design do impeccable avisa "Suppressing further design hints" depois de 6 edições no mesmo arquivo.
+- **Pendências**: ver "Próximos passos" em `docs/tasks.md`.
+

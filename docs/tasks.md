@@ -62,7 +62,17 @@
       controles que somem em tela cheia, compartilhar pelo menu do celular
       (ADR 024).
 
+- [x] Servidor à prova de payload malformado, reconexão por sessão (nome não
+      é mais recusado ao voltar), conexões WebRTC com estado + aviso quando
+      falham, TURN opcional por variável de ambiente, testes do servidor
+      (`npm test`) — ADR 025.
+
 ## Próximos passos possíveis (não iniciados)
+- [ ] **Confirmar a tela preta do espectador num caso real** (reportado em
+      2026-10-02, celular e outro navegador): com o ADR 025 ele passa a ver
+      "Conectando…"/"Não foi possível conectar". Se for falha de rede, o
+      caminho é ligar um TURN (README). Testar também ICE restart de ponta a
+      ponta, que não foi possível no ambiente de teste.
 - [ ] **Testar num celular de verdade** o que só foi simulado: tela cheia em
       paisagem, Wake Lock, PiP, menu de compartilhar nativo, teclado.
 - [ ] Servidor TURN: sem ele, quem assiste pelo 4G (NAT restritivo) pode não

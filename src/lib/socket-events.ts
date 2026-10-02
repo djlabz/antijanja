@@ -15,6 +15,17 @@ export interface Participant {
   compartilhando: boolean;
 }
 
+/**
+ * Servidor STUN/TURN extra, definido por quem hospeda (variáveis de ambiente
+ * `TURN_URL`, `TURN_USERNAME`, `TURN_CREDENTIAL`) e entregue a cada cliente
+ * ao entrar na sala — assim dá pra ligar um TURN sem rebuildar o app (ADR 025).
+ */
+export interface IceServerConfig {
+  urls: string | string[];
+  username?: string;
+  credential?: string;
+}
+
 export interface ChatMessage {
   de: ParticipantId;
   nome: string;
@@ -39,9 +50,19 @@ export interface ReacaoRecebida {
 
 export type SinalTipo = "offer" | "answer" | "candidate";
 
+/**
+ * Qual conexão do remetente gerou o sinal: `saida` = a que ELE oferece
+ * (manda a tela dele), `entrada` = a que ele responde (recebe a tela de
+ * quem recebe o sinal). Só importa pra `candidate`: sem isso, quando duas
+ * pessoas transmitem ao mesmo tempo (uma conexão em cada sentido), o
+ * candidato podia cair na conexão errada (ADR 025).
+ */
+export type SinalOrigem = "saida" | "entrada";
+
 export interface SinalPayload {
   tipo: SinalTipo;
   dados: unknown;
+  origem?: SinalOrigem;
 }
 
 /**
@@ -74,7 +95,9 @@ export interface EventosCliente {
   "sala:entrar": (
     // `nome` vazio pede pro servidor atribuir um nome de convidado
     // ("Convidado 1", "Convidado 2"...) — ver docs/decisions.md (ADR 014).
-    payload: { codigo: string; nome: string },
+    // `sessao`: id aleatório da aba, igual em toda reconexão — deixa o
+    // servidor reconhecer "sou eu voltando" (ADR 025).
+    payload: { codigo: string; nome: string; sessao: string },
     ack: (
       resposta:
         | {
@@ -83,6 +106,8 @@ export interface EventosCliente {
             nome: string;
             participantes: Participant[];
             fonteVideo: FonteVideo | null;
+            /** Servidores ICE extras (TURN) configurados no servidor; vazio = só o STUN padrão. */
+            iceServers: IceServerConfig[];
           }
         | { ok: false; erro: string }
     ) => void

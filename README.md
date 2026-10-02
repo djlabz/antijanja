@@ -124,12 +124,33 @@ Chat/Participantes. Detalhes em `docs/features/001-uso-no-celular-e-desktop.md`.
 - `npm run dev` — sobe o servidor (Next.js + Socket.IO) só na sua rede local.
 - `npm run share` — sobe o servidor + túnel público pros amigos de fora.
 - `npm run lint` — checa o código.
+- `npm test` — testes do servidor de sinalização (Node + tsx, sem Next).
 - `npm run build` / `npm run start` — build de produção.
+
+## Ligar um servidor TURN (opcional)
+
+Se amigos no 4G ou em redes de empresa veem "Não foi possível conectar", falta
+um TURN: um servidor que repassa o vídeo quando a conexão direta é impossível.
+Pode ser um `coturn` seu ou um serviço com plano gratuito (veja os limites
+atuais antes de contar com ele — o vídeo passa por lá, então gasta franquia).
+Defina no servidor (Docker, Render ou o terminal onde roda `npm run dev`):
+
+```
+TURN_URL=turn:turn.exemplo.com:3478,turns:turn.exemplo.com:5349
+TURN_USERNAME=usuario
+TURN_CREDENTIAL=senha
+```
+
+Não precisa rebuildar: o servidor entrega isso a cada pessoa ao entrar na sala.
+Sem essas variáveis, o app usa só STUN, como antes.
 
 ## Limitações conhecidas
 
-- Sem servidor TURN: em redes muito restritivas (algumas 4G/CGNAT), a
-  conexão direta entre dois participantes pode falhar (ADR 003).
+- Sem servidor TURN (o padrão): em redes muito restritivas (algumas
+  4G/CGNAT, redes de trabalho, firewall), a conexão direta entre dois
+  participantes pode falhar (ADR 003). Quando isso acontece quem assiste vê
+  "Não foi possível conectar com X" no lugar do vídeo. Pra resolver, ligue um
+  TURN (próximo tópico).
 - Acima de ~6-8 pessoas assistindo a mesma tela, o upload de quem
   compartilha vira o gargalo — cada espectador a mais consome mais uma
   fatia inteira do seu upload (ADR 003). Baixar a qualidade no ícone de

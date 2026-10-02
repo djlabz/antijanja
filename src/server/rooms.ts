@@ -8,9 +8,19 @@
  */
 import type { FonteVideo, Participant, ParticipantId } from "../lib/socket-events";
 
+/**
+ * `sessao` identifica a PESSOA (uma aba do navegador), não a conexão: o
+ * socket id muda a cada reconexão, a sessão não. É o que permite reconhecer
+ * "sou eu voltando" em vez de recusar o meu próprio nome (ADR 025). Nunca sai
+ * do servidor — `Participant` (o que vai pros outros) não a carrega.
+ */
+interface Registro extends Participant {
+  sessao: string;
+}
+
 interface Sala {
   codigo: string;
-  participantes: Map<ParticipantId, Participant>;
+  participantes: Map<ParticipantId, Registro>;
   fonteVideo: FonteVideo | null;
 }
 
@@ -25,14 +35,22 @@ function obterOuCriarSala(codigo: string): Sala {
   return sala;
 }
 
+function publico({ id, nome, compartilhando }: Registro): Participant {
+  return { id, nome, compartilhando };
+}
+
 export function entrarNaSala(
   codigo: string,
   id: ParticipantId,
-  nome: string
-): Participant[] {
-  const sala = obterOuCriarSala(codigo);
-  sala.participantes.set(id, { id, nome, compartilhando: false });
-  return [...sala.participantes.values()];
+  nome: string,
+  sessao: string
+): void {
+  obterOuCriarSala(codigo).participantes.set(id, {
+    id,
+    nome,
+    compartilhando: false,
+    sessao,
+  });
 }
 
 /** Remove o participante e apaga a sala (com sua fonte de vídeo) se ela ficar vazia. */
@@ -45,28 +63,52 @@ export function sairDaSala(codigo: string, id: ParticipantId): void {
   }
 }
 
+export function estaNaSala(codigo: string, id: ParticipantId): boolean {
+  return salas.get(codigo)?.participantes.has(id) ?? false;
+}
+
+/**
+ * Quem já está na sala com essa sessão, se houver — é a conexão ANTIGA da
+ * mesma pessoa (rede caiu, tela bloqueou) que o servidor ainda não percebeu
+ * que morreu.
+ */
+export function encontrarPorSessao(
+  codigo: string,
+  sessao: string
+): Participant | null {
+  if (!sessao) return null;
+  for (const p of salas.get(codigo)?.participantes.values() ?? []) {
+    if (p.sessao === sessao) return publico(p);
+  }
+  return null;
+}
+
 export function marcarCompartilhando(
   codigo: string,
   id: ParticipantId,
   compartilhando: boolean
 ): void {
-  const sala = salas.get(codigo);
-  const participante = sala?.participantes.get(id);
+  const participante = salas.get(codigo)?.participantes.get(id);
   if (participante) {
     participante.compartilhando = compartilhando;
   }
 }
 
 export function listarParticipantes(codigo: string): Participant[] {
-  return [...(salas.get(codigo)?.participantes.values() ?? [])];
+  return [...(salas.get(codigo)?.participantes.values() ?? [])].map(publico);
 }
 
-export function nomeEmUso(codigo: string, nome: string): boolean {
+/** `ignorarId`: a própria conexão antiga de quem está reentrando não conta. */
+export function nomeEmUso(
+  codigo: string,
+  nome: string,
+  ignorarId?: ParticipantId
+): boolean {
   const sala = salas.get(codigo);
   if (!sala) return false;
   const alvo = nome.trim().toLowerCase();
   return [...sala.participantes.values()].some(
-    (p) => p.nome.trim().toLowerCase() === alvo
+    (p) => p.id !== ignorarId && p.nome.trim().toLowerCase() === alvo
   );
 }
 

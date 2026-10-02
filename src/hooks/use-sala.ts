@@ -2,19 +2,24 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { criarSocket, type SocketSala } from "@/lib/socket";
-import { configuracaoIce } from "@/lib/webrtc-config";
 import {
-  aplicarLimiteBitrate,
-  construirConstraintsVideo,
-} from "@/lib/qualidade-transmissao";
+  criarConexoes,
+  type Conexoes,
+  type EstadoConexao,
+  type EstatisticasVideo,
+} from "@/lib/conexoes-webrtc";
+import { construirConstraintsVideo } from "@/lib/qualidade-transmissao";
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import type {
   ChatMessage,
   ComandoVideo,
   FonteVideo,
+  IceServerConfig,
   Participant,
   ParticipantId,
 } from "@/lib/socket-events";
+
+export type { EstadoConexao, EstatisticasVideo };
 
 type Status = "conectando" | "conectado" | "erro";
 
@@ -26,25 +31,29 @@ export interface ReacaoFlutuante {
   x: number;
 }
 
-export interface EstatisticasVideo {
-  largura: number;
-  altura: number;
-  fps: number;
-  bytes: number;
-  /** Timestamp do relatório WebRTC, em ms. */
-  em: number;
+/**
+ * Identifica ESTA aba (não a conexão): igual em toda reconexão, diferente
+ * numa aba nova. É o que permite ao servidor reconhecer "sou eu voltando" em
+ * vez de recusar meu próprio nome (ADR 025). `crypto.randomUUID` só existe em
+ * contexto seguro (https/localhost) — num IP da rede local em http cai no
+ * sorteio simples, que serve igual (não é segredo, só um identificador).
+ */
+function gerarSessao() {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
 }
 
 /**
  * Toda a lógica de uma sala: entrar via Socket.IO, trocar sinalização WebRTC
  * e manter as conexões ponto a ponto de compartilhamento de tela.
  *
- * Modelo é "mesh só do lado de quem compartilha": cada pessoa que compartilha
- * a tela abre uma `RTCPeerConnection` direto com cada espectador (sem
- * servidor de vídeo no meio). Duas conexões separadas por par de participantes
- * quando os dois compartilham ao mesmo tempo — uma em cada sentido:
- * `conexoesSaida` (eu sou quem oferece, mando minha tela) e `conexoesEntrada`
- * (o outro oferece, eu só recebo). Ver docs/decisions.md (ADR 003).
+ * As conexões em si (abrir, fechar, reiniciar quando caem) moram em
+ * `@/lib/conexoes-webrtc`; aqui só se liga isso ao socket e ao estado da tela.
+ * O modelo é "mesh só do lado de quem compartilha" — ver docs/decisions.md
+ * (ADR 003).
  *
  * O socket é criado aqui dentro (não é um singleton importado) e fechado no
  * cleanup deste mesmo efeito — ver docs/decisions.md (ADR 006).
@@ -67,21 +76,28 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   const [streamsRemotos, setStreamsRemotos] = useState<
     Record<ParticipantId, MediaStream>
   >({});
+  const [estadosConexao, setEstadosConexao] = useState<
+    Record<ParticipantId, EstadoConexao>
+  >({});
   const [linkPublico, setLinkPublico] = useState<string | null>(null);
   const [fonteVideo, setFonteVideo] = useState<FonteVideo | null>(null);
   const [ultimoComandoVideo, setUltimoComandoVideo] = useState<
     (ComandoVideo & { de: ParticipantId }) | null
   >(null);
 
+  // Vale pela vida desta aba: o efeito abaixo reabre o socket quando o nome
+  // muda (convidado recebe o nome do servidor) e isso também é "a mesma pessoa".
+  const [sessao] = useState(gerarSessao);
+
   const [reacoes, setReacoes] = useState<ReacaoFlutuante[]>([]);
   const contadorReacaoRef = useRef(0);
 
   const socketRef = useRef<SocketSala | null>(null);
-  const conexoesSaida = useRef(new Map<ParticipantId, RTCPeerConnection>());
-  const conexoesEntrada = useRef(new Map<ParticipantId, RTCPeerConnection>());
+  const conexoesRef = useRef<Conexoes | null>(null);
   const streamLocalRef = useRef<MediaStream | null>(null);
   const euIdRef = useRef<ParticipantId | null>(null);
   const participantesRef = useRef<Participant[]>([]);
+  const iceServersRef = useRef<IceServerConfig[]>([]);
 
   const removerStreamRemoto = useCallback((id: ParticipantId) => {
     setStreamsRemotos((atual) => {
@@ -90,20 +106,6 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       delete copia[id];
       return copia;
     });
-  }, []);
-
-  const fecharConexaoEntrada = useCallback(
-    (id: ParticipantId) => {
-      conexoesEntrada.current.get(id)?.close();
-      conexoesEntrada.current.delete(id);
-      removerStreamRemoto(id);
-    },
-    [removerStreamRemoto]
-  );
-
-  const fecharConexaoSaida = useCallback((id: ParticipantId) => {
-    conexoesSaida.current.get(id)?.close();
-    conexoesSaida.current.delete(id);
   }, []);
 
   const pararCompartilhamento = useCallback(() => {
@@ -116,8 +118,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         p.id === euIdRef.current ? { ...p, compartilhando: false } : p
       )
     );
-    conexoesSaida.current.forEach((pc) => pc.close());
-    conexoesSaida.current.clear();
+    conexoesRef.current?.fecharSaidas();
     socketRef.current?.emit("compartilhar:parar");
   }, []);
 
@@ -130,49 +131,34 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     const socket = criarSocket();
     socketRef.current = socket;
 
-    function criarConexaoEntrada(deId: ParticipantId) {
-      const pc = new RTCPeerConnection(configuracaoIce);
-      conexoesEntrada.current.set(deId, pc);
+    const conexoes = criarConexoes({
+      enviarSinal: (para, tipo, dados, origem) =>
+        socket.emit("webrtc:sinal", { para, tipo, dados, origem }),
+      obterStreamLocal: () => streamLocalRef.current,
+      obterBitrateMbps: () => useConfigTransmissaoStore.getState().bitrateMbps,
+      obterIceServers: () => iceServersRef.current,
+      aoReceberStream: (de, stream) =>
+        setStreamsRemotos((atual) => ({ ...atual, [de]: stream })),
+      aoMudarEstadoEntrada: (de, estado) =>
+        setEstadosConexao((atual) => {
+          if (estado === null) {
+            if (!(de in atual)) return atual;
+            const copia = { ...atual };
+            delete copia[de];
+            return copia;
+          }
+          return atual[de] === estado ? atual : { ...atual, [de]: estado };
+        }),
+    });
+    conexoesRef.current = conexoes;
 
-      pc.onicecandidate = (evento) => {
-        if (evento.candidate) {
-          socket.emit("webrtc:sinal", {
-            para: deId,
-            tipo: "candidate",
-            dados: evento.candidate,
-          });
-        }
-      };
-
-      pc.ontrack = (evento) => {
-        setStreamsRemotos((atual) => ({ ...atual, [deId]: evento.streams[0] }));
-      };
-
-      return pc;
+    function ofertar(paraId: ParticipantId, mensagemErro: string) {
+      conexoes.ofertar(paraId).catch(() => setErro(mensagemErro));
     }
 
-    async function ofertarParaNovoParticipante(paraId: ParticipantId) {
-      if (!streamLocalRef.current) return;
-      const pc = new RTCPeerConnection(configuracaoIce);
-      conexoesSaida.current.set(paraId, pc);
-      streamLocalRef.current
-        .getTracks()
-        .forEach((track) => pc.addTrack(track, streamLocalRef.current!));
-      await aplicarLimiteBitrate(pc, useConfigTransmissaoStore.getState().bitrateMbps);
-
-      pc.onicecandidate = (evento) => {
-        if (evento.candidate) {
-          socket.emit("webrtc:sinal", {
-            para: paraId,
-            tipo: "candidate",
-            dados: evento.candidate,
-          });
-        }
-      };
-
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit("webrtc:sinal", { para: paraId, tipo: "offer", dados: offer });
+    function fecharConexaoEntrada(id: ParticipantId) {
+      conexoes.fecharEntrada(id);
+      removerStreamRemoto(id);
     }
 
     // Nome que vale numa reentrada: o que o servidor já nos deu (convidado
@@ -186,13 +172,10 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       // saída, e as conexões WebRTC antigas morreram junto. Sem reentrar, o
       // celular que bloqueia a tela/troca de rede volta "conectado" mas fora
       // da sala, com o vídeo congelado (ver ADR 020).
-      conexoesEntrada.current.forEach((pc) => pc.close());
-      conexoesEntrada.current.clear();
-      conexoesSaida.current.forEach((pc) => pc.close());
-      conexoesSaida.current.clear();
+      conexoes.fecharTudo();
       setStreamsRemotos({});
 
-      socket.emit("sala:entrar", { codigo, nome: nomeEfetivo }, (resposta) => {
+      socket.emit("sala:entrar", { codigo, nome: nomeEfetivo, sessao }, (resposta) => {
         if (!resposta.ok) {
           setErro(resposta.erro);
           setStatus("erro");
@@ -200,6 +183,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         }
         nomeEfetivo = resposta.nome;
         euIdRef.current = resposta.euId;
+        iceServersRef.current = resposta.iceServers ?? [];
         setEuId(resposta.euId);
         setMeuNome(resposta.nome); // pode diferir de `nome` (convidado: veio vazio, o servidor decidiu).
         const estavaCompartilhando = streamLocalRef.current !== null;
@@ -221,9 +205,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         if (estavaCompartilhando) {
           socket.emit("compartilhar:iniciar");
           for (const participante of resposta.participantes) {
-            ofertarParaNovoParticipante(participante.id).catch(() =>
-              setErro("Não foi possível retomar o compartilhamento.")
-            );
+            ofertar(participante.id, "Não foi possível retomar o compartilhamento.");
           }
         }
       });
@@ -273,9 +255,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         participantesRef.current = proximo;
         return proximo;
       });
-      ofertarParaNovoParticipante(participante.id).catch(() =>
-        setErro("Não foi possível iniciar o compartilhamento com um participante.")
-      );
+      ofertar(participante.id, "Não foi possível iniciar o compartilhamento com um participante.");
     });
 
     socket.on("participante:saiu", (id) => {
@@ -286,8 +266,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         participantesRef.current = proximo;
         return proximo;
       });
-      fecharConexaoEntrada(id);
-      fecharConexaoSaida(id);
+      conexoes.esquecer(id);
+      removerStreamRemoto(id);
     });
 
     socket.on("chat:mensagem", (mensagem) => {
@@ -327,29 +307,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       fecharConexaoEntrada(id);
     });
 
-    socket.on("webrtc:sinal", async ({ de, tipo, dados }) => {
-      if (tipo === "offer") {
-        const pc = conexoesEntrada.current.get(de) ?? criarConexaoEntrada(de);
-        await pc.setRemoteDescription(new RTCSessionDescription(dados as RTCSessionDescriptionInit));
-        const answer = await pc.createAnswer();
-        await pc.setLocalDescription(answer);
-        socket.emit("webrtc:sinal", { para: de, tipo: "answer", dados: answer });
-        return;
-      }
-      if (tipo === "answer") {
-        const pc = conexoesSaida.current.get(de);
-        await pc?.setRemoteDescription(new RTCSessionDescription(dados as RTCSessionDescriptionInit));
-        return;
-      }
-      // candidate: tenta a conexão de entrada primeiro (caso mais comum: assistindo alguém), senão a de saída.
-      const pc = conexoesEntrada.current.get(de) ?? conexoesSaida.current.get(de);
-      if (pc) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(dados as RTCIceCandidateInit));
-        } catch {
-          // candidato atrasado/inválido, sem problema — ICE segue tentando outras rotas.
-        }
-      }
+    socket.on("webrtc:sinal", ({ de, tipo, dados, origem }) => {
+      conexoes.tratarSinal(de, tipo, dados, origem);
     });
 
     return () => {
@@ -357,47 +316,23 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       window.removeEventListener("offline", aoFicarOffline);
       window.removeEventListener("online", aoFicarOnline);
       socket.removeAllListeners();
-      conexoesSaida.current.forEach((pc) => pc.close());
-      conexoesEntrada.current.forEach((pc) => pc.close());
-      // Não são refs de nó do DOM, são `Map`s de dados mutados direto — o
-      // aviso do lint (pensado pra refs de elemento) não se aplica aqui.
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      conexoesSaida.current.clear();
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      conexoesEntrada.current.clear();
+      conexoes.encerrar();
+      conexoesRef.current = null;
       streamLocalRef.current?.getTracks().forEach((track) => track.stop());
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [codigo, nome, pronto, fecharConexaoEntrada, fecharConexaoSaida]);
+  }, [codigo, nome, pronto, sessao, removerStreamRemoto]);
 
-  /**
-   * Foto do vídeo que estou recebendo de `id` (resolução, fps e total de
-   * bytes recebidos — quem chama compara duas fotos pra achar o bitrate).
-   * Deixa quem assiste diferenciar rede fraca de configuração de quem
-   * transmite (ver ADR 019).
-   */
   const enviarReacao = useCallback((emoji: string) => {
     socketRef.current?.emit("reacao:enviar", emoji);
   }, []);
 
-  const lerEstatisticasEntrada = useCallback(async (id: ParticipantId) => {
-    const pc = conexoesEntrada.current.get(id);
-    if (!pc) return null;
-    let foto: EstatisticasVideo | null = null;
-    (await pc.getStats()).forEach((r) => {
-      if (r.type === "inbound-rtp" && (r.kind ?? r.mediaType) === "video") {
-        foto = {
-          largura: r.frameWidth ?? 0,
-          altura: r.frameHeight ?? 0,
-          fps: r.framesPerSecond ?? 0,
-          bytes: r.bytesReceived ?? 0,
-          em: r.timestamp,
-        };
-      }
-    });
-    return foto;
-  }, []);
+  /** Foto do vídeo que recebo de `id` (ver `estatisticas` em `conexoes-webrtc`). */
+  const lerEstatisticasEntrada = useCallback(
+    async (id: ParticipantId) => (await conexoesRef.current?.estatisticas(id)) ?? null,
+    []
+  );
 
   const enviarMensagem = useCallback((texto: string) => {
     if (!texto.trim()) return;
@@ -408,7 +343,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     const socket = socketRef.current;
     if (!socket) return;
 
-    const { resolucao, fps, bitrateMbps } = useConfigTransmissaoStore.getState();
+    const { resolucao, fps } = useConfigTransmissaoStore.getState();
 
     const stream = await navigator.mediaDevices.getDisplayMedia({
       // Limita resolução e fps ao que foi escolhido em "Qualidade da
@@ -456,25 +391,12 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     trilhaVideo?.addEventListener("ended", pararCompartilhamento);
 
     socket.emit("compartilhar:iniciar");
-    for (const participante of participantesRef.current) {
-      if (participante.id === euIdRef.current) continue;
-      const pc = new RTCPeerConnection(configuracaoIce);
-      conexoesSaida.current.set(participante.id, pc);
-      stream.getTracks().forEach((track) => pc.addTrack(track, stream));
-      await aplicarLimiteBitrate(pc, bitrateMbps);
-      pc.onicecandidate = (evento) => {
-        if (evento.candidate) {
-          socket.emit("webrtc:sinal", {
-            para: participante.id,
-            tipo: "candidate",
-            dados: evento.candidate,
-          });
-        }
-      };
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit("webrtc:sinal", { para: participante.id, tipo: "offer", dados: offer });
-    }
+    // Em paralelo: um espectador lento não atrasa a oferta pros outros.
+    await Promise.allSettled(
+      participantesRef.current
+        .filter((p) => p.id !== euIdRef.current)
+        .map((p) => conexoesRef.current?.ofertar(p.id))
+    );
   }, [pararCompartilhamento]);
 
   /**
@@ -493,9 +415,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         // real — sem problema, vale a partir do próximo compartilhamento.
       }
     }
-    for (const pc of conexoesSaida.current.values()) {
-      await aplicarLimiteBitrate(pc, bitrateMbps);
-    }
+    await conexoesRef.current?.aplicarBitrate(bitrateMbps);
   }, []);
 
   const adicionarFonteVideo = useCallback(
@@ -528,6 +448,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     estouCompartilhando,
     streamLocal,
     streamsRemotos,
+    estadosConexao,
     linkPublico,
     fonteVideo,
     ultimoComandoVideo,

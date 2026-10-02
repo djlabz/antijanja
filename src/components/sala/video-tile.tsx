@@ -11,11 +11,12 @@ import {
   PictureInPicture2,
   Volume2,
   VolumeX,
+  WifiOff,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { alternarTelaCheia } from "@/lib/tela-cheia";
-import type { EstatisticasVideo, ReacaoFlutuante } from "@/hooks/use-sala";
+import type { EstadoConexao, EstatisticasVideo, ReacaoFlutuante } from "@/hooks/use-sala";
 import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import type { ParticipantId } from "@/lib/socket-events";
 import {
@@ -32,6 +33,8 @@ interface VideoTileProps {
   /** Lê a foto das estatísticas de recepção de `participanteId` — só pra quem assiste. */
   estatisticasDe?: (id: ParticipantId) => Promise<EstatisticasVideo | null>;
   participanteId?: ParticipantId;
+  /** Estado da conexão que traz este vídeo — só pra quem assiste. Sem ele, tela preta não explica nada. */
+  conexao?: EstadoConexao;
   /** Chat mostrado sobreposto ao vídeo enquanto está em tela cheia. */
   chat?: ReactNode;
   /** Botão de destacar/ver todas (só existe com 2+ telas). */
@@ -48,9 +51,11 @@ export const EVENTO_MUDO = "sinal:mudo";
 export const EVENTO_ABRIR_CHAT = "sinal:abrir-chat";
 export const EVENTO_PIP = "sinal:pip";
 
-// Botões de ícone puro sobre o vídeo (sem fundo), legíveis por sombra.
+// Botões de ícone puro sobre o vídeo (sem fundo), legíveis por sombra. No
+// toque a área sobe pra 44px (o ícone continua pequeno): 28px é difícil de
+// acertar com o dedo.
 const BOTAO_ICONE =
-  "flex size-7 items-center justify-center text-white/80 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] hover:text-white focus-visible:outline-2 focus-visible:outline-ring";
+  "flex size-7 items-center justify-center text-white/80 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] hover:text-white focus-visible:outline-2 focus-visible:outline-ring [@media(hover:none)]:size-11";
 
 /** Solta o vídeo numa janelinha flutuante (ou volta), onde o navegador suporta. */
 function alternarPip(video: HTMLVideoElement | null) {
@@ -77,6 +82,7 @@ export function VideoTile({
   mudo,
   estatisticasDe,
   participanteId,
+  conexao,
   chat,
   destaque,
   reacoes,
@@ -96,6 +102,11 @@ export function VideoTile({
   const [emPip, setEmPip] = useState(false);
   // Em tela cheia, sem mexer o mouse por 3s os controles e o cursor somem.
   const [ocioso, setOcioso] = useState(false);
+  // Já chegou o primeiro quadro? Até lá "conectando" é o que explica o preto.
+  const [temImagem, setTemImagem] = useState(false);
+  // O navegador barrou o autoplay COM som (acontece sem toque prévio na
+  // página, ex.: recarregou direto na sala): toca mudo e oferece ativar.
+  const [somBloqueado, setSomBloqueado] = useState(false);
   const pipDisponivel = typeof document !== "undefined" && document.pictureInPictureEnabled;
 
   useEffect(() => {
@@ -107,11 +118,27 @@ export function VideoTile({
         setProporcao(video.videoWidth / video.videoHeight);
       }
     }
+    function aoTerImagem() {
+      setTemImagem(true);
+    }
     video.addEventListener("loadedmetadata", aoMedir);
     video.addEventListener("resize", aoMedir);
+    video.addEventListener("loadeddata", aoTerImagem);
+
+    // `autoPlay` sozinho falha em silêncio quando o navegador barra som sem
+    // toque prévio — e o resultado é um vídeo preto parado.
+    video.play().catch((erro: unknown) => {
+      if ((erro as { name?: string })?.name !== "NotAllowedError") return;
+      video.muted = true;
+      setSilenciado(true);
+      setSomBloqueado(true);
+      video.play().catch(() => {});
+    });
+
     return () => {
       video.removeEventListener("loadedmetadata", aoMedir);
       video.removeEventListener("resize", aoMedir);
+      video.removeEventListener("loadeddata", aoTerImagem);
     };
   }, [stream]);
 
@@ -232,6 +259,26 @@ export function VideoTile({
   const tocaSom = !mudo;
   const volumeMostrado = silenciado ? 0 : volume;
 
+  // O que dizer sobre a conexão (null = nada, o vídeo fala por si).
+  const avisoConexao =
+    conexao === "falhou"
+      ? ({ tipo: "falhou" } as const)
+      : conexao === "instavel"
+        ? ({ tipo: "instavel" } as const)
+        : conexao === "conectando" && !temImagem
+          ? ({ tipo: "conectando" } as const)
+          : null;
+
+  function ativarSom() {
+    const video = videoRef.current;
+    setSomBloqueado(false);
+    setSilenciado(false);
+    if (video) {
+      video.muted = false;
+      video.play().catch(() => {});
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -267,6 +314,48 @@ export function VideoTile({
         muted={mudo}
         className={cn("h-full w-full object-contain", emTelaCheia && "h-auto max-h-full")}
       />
+
+      {avisoConexao && (
+        <div
+          role="status"
+          className={cn(
+            "absolute inset-0 flex flex-col items-center justify-center gap-1.5 p-4 text-center",
+            // Com imagem congelada por baixo, escurece pra o texto ler.
+            temImagem && "bg-black/60"
+          )}
+        >
+          {avisoConexao.tipo === "falhou" ? (
+            <>
+              <WifiOff className="size-5 text-destructive" aria-hidden />
+              <p className="text-sm font-medium text-white">
+                Não foi possível conectar com {nome}
+              </p>
+              <p className="max-w-xs text-xs text-white/70">
+                A rede de um dos dois bloqueia a conexão direta (comum em 4G e redes de
+                trabalho). Quem hospeda pode ligar um servidor TURN — veja o README.
+              </p>
+            </>
+          ) : (
+            <p className="flex items-center gap-2 text-sm text-white/80">
+              <span className="size-1.5 animate-pulse rounded-full bg-primary" aria-hidden />
+              {avisoConexao.tipo === "instavel"
+                ? `Conexão com ${nome} instável…`
+                : `Conectando com ${nome}…`}
+            </p>
+          )}
+        </div>
+      )}
+
+      {somBloqueado && (
+        <button
+          type="button"
+          onClick={ativarSom}
+          className="absolute bottom-3 left-1/2 flex min-h-11 -translate-x-1/2 items-center gap-2 rounded-full bg-black/70 px-4 text-sm text-white hover:bg-black/80 focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <VolumeX className="size-4" aria-hidden />
+          Tocar com som
+        </button>
+      )}
 
       {emTelaCheia && reacoes && <ReacoesFlutuantes reacoes={reacoes} />}
 
@@ -380,7 +469,7 @@ export function VideoTile({
           <button
             type="button"
             onClick={() => setChatAberto((a) => !a)}
-            className="flex items-center gap-1.5 text-white/80 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] hover:text-white focus-visible:outline-2 focus-visible:outline-ring"
+            className="flex items-center gap-1.5 text-white/80 [filter:drop-shadow(0_1px_3px_rgb(0_0_0_/_0.8))] hover:text-white focus-visible:outline-2 focus-visible:outline-ring [@media(hover:none)]:min-h-11"
             aria-label={chatAberto ? "Fechar chat" : "Abrir chat (/)"}
             aria-expanded={chatAberto}
           >

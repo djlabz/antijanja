@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { SendHorizontal, SmilePlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,7 +28,10 @@ function formatarHorario(em: number) {
   });
 }
 
-export function Chat({ mensagens, euId, onEnviar, onReagir }: ChatProps) {
+// `memo`: a sala re-renderiza a cada reação que chega (o estado das reações
+// mora no mesmo hook); sem isso o histórico inteiro do chat era redesenhado
+// junto, e com reações em enxurrada pesava.
+export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: ChatProps) {
   const [texto, setTexto] = useState("");
   const [reagindo, setReagindo] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -109,6 +112,10 @@ export function Chat({ mensagens, euId, onEnviar, onReagir }: ChatProps) {
       <div
         ref={listaRef}
         onScroll={aoRolar}
+        // `log` é anunciado como "educado" por leitores de tela: mensagem nova
+        // é lida sem interromper, e só as novas (não o histórico todo).
+        role="log"
+        aria-label="Mensagens do chat"
         className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
       >
         <div className="flex flex-col gap-2 py-1">
@@ -227,4 +234,4 @@ export function Chat({ mensagens, euId, onEnviar, onReagir }: ChatProps) {
       </form>
     </div>
   );
-}
+});

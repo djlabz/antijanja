@@ -38,6 +38,13 @@ Ignorados enquanto se digita num campo ou com um diálogo aberto.
   faixa "Reconectando…" enquanto isso. O id do participante muda a cada
   reconexão.
 
+- Se a conexão de VÍDEO com alguém não fecha, o espectador vê no lugar do
+  quadro preto: "Conectando com X…", "Conexão com X instável…" ou "Não foi
+  possível conectar com X" (rede restritiva; ver README, "Ligar um servidor
+  TURN"). Quem transmite refaz o caminho sozinho até 3 vezes.
+- Se o navegador barrar o autoplay com som, o vídeo toca mudo e aparece
+  "Tocar com som".
+
 ## Aviso com a aba escondida (desktop)
 Contador no título ("(3) Sinal") e bipe opcional (sino no cabeçalho, salvo
 no `localStorage`) quando chega mensagem ou alguém começa a transmitir.
