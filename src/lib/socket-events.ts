@@ -57,6 +57,13 @@ export type SinalTipo = "offer" | "answer" | "candidate";
  * pessoas transmitem ao mesmo tempo (uma conexão em cada sentido), o
  * candidato podia cair na conexão errada (ADR 025).
  */
+/**
+ * Por que o servidor recusou a entrada, quando a tela pode fazer algo melhor
+ * que "tentar de novo" (esperar não destranca uma sala; outro nome resolve
+ * "em uso"). Sem `motivo` = erro genérico, só o texto.
+ */
+export type MotivoRecusa = "trancada" | "nome-em-uso" | "limite";
+
 export type SinalOrigem = "saida" | "entrada";
 
 export interface SinalPayload {
@@ -111,7 +118,7 @@ export interface EventosCliente {
             /** A sala está trancada (ninguém novo entra)? */
             trancada: boolean;
           }
-        | { ok: false; erro: string }
+        | { ok: false; erro: string; motivo?: MotivoRecusa }
     ) => void
   ) => void;
   /** Tranca/destranca a sala — qualquer pessoa dentro pode (grupo pequeno de amigos). */

@@ -16,6 +16,7 @@ import type {
   ComandoVideo,
   FonteVideo,
   IceServerConfig,
+  MotivoRecusa,
   Participant,
   ParticipantId,
 } from "@/lib/socket-events";
@@ -68,6 +69,9 @@ function gerarSessao() {
 export function useSala(codigo: string, nome: string, pronto: boolean) {
   const [status, setStatus] = useState<Status>("conectando");
   const [erro, setErro] = useState<string | null>(null);
+  // Quando o servidor recusou a entrada por um motivo que a tela trata à parte
+  // (sala trancada, nome repetido); null = erro comum.
+  const [motivoErro, setMotivoErro] = useState<MotivoRecusa | null>(null);
   const [euId, setEuId] = useState<ParticipantId | null>(null);
   const [meuNome, setMeuNome] = useState<string | null>(null);
   const [participantes, setParticipantes] = useState<Participant[]>([]);
@@ -187,6 +191,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       socket.emit("sala:entrar", { codigo, nome: nomeEfetivo, sessao }, (resposta) => {
         if (!resposta.ok) {
           setErro(resposta.erro);
+          setMotivoErro(resposta.motivo ?? null);
           setStatus("erro");
           return;
         }
@@ -502,6 +507,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   return {
     status,
     erro,
+    motivoErro,
     euId,
     meuNome,
     participantes,

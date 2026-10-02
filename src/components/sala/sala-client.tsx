@@ -97,6 +97,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const {
     status,
     erro,
+    motivoErro,
     euId,
     meuNome,
     participantes,
@@ -246,13 +247,33 @@ export function SalaClient({ codigo }: SalaClientProps) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-destructive">{erro}</p>
-        <div className="flex gap-2">
-          {/* Recarregar refaz a entrada do zero: serve pra "nome em uso" que
-              some sozinho em segundos e pra queda de rede passageira. */}
+        {motivoErro === "trancada" && (
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Quando alguém de dentro destrancar, é só tentar de novo.
+          </p>
+        )}
+        <div className="flex flex-wrap justify-center gap-2">
+          {motivoErro === "nome-em-uso" && (
+            // O nome salvo nesta aba é o que está repetido: apaga e recarrega
+            // pra cair na tela de escolher nome (recarregar sozinho só repetiria
+            // o mesmo pedido).
+            <Button
+              onClick={() => {
+                definirNome("");
+                window.location.reload();
+              }}
+            >
+              Escolher outro nome
+            </Button>
+          )}
+          {/* Recarregar refaz a entrada do zero: serve pra queda de rede
+              passageira e pra sala que acabou de ser destrancada. */}
           <Button variant="outline" onClick={() => window.location.reload()}>
             Tentar de novo
           </Button>
-          <Button onClick={() => router.push("/")}>Voltar</Button>
+          <Button variant={motivoErro === "nome-em-uso" ? "outline" : "default"} onClick={() => router.push("/")}>
+            {motivoErro === "trancada" ? "Entrar em outra sala" : "Voltar"}
+          </Button>
         </div>
       </div>
     );

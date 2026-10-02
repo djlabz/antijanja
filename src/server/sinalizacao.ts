@@ -216,7 +216,11 @@ export function registrarSinalizacao(
           return;
         }
         if (!podeTentarEntrar(ipDe(socket))) {
-          responder({ ok: false, erro: "Muitas tentativas de entrar. Espere um minuto." });
+          responder({
+            ok: false,
+            erro: "Muitas tentativas de entrar. Espere um minuto.",
+            motivo: "limite",
+          });
           return;
         }
         const codigo = payload.codigo.trim().toLowerCase();
@@ -242,6 +246,7 @@ export function registrarSinalizacao(
           responder({
             ok: false,
             erro: "Esta sala está trancada. Peça pra alguém de dentro destrancar.",
+            motivo: "trancada",
           });
           return;
         }
@@ -253,7 +258,7 @@ export function registrarSinalizacao(
         if (!nome) {
           nome = antigo?.nome ?? gerarNomeConvidado(codigo);
         } else if (nomeEmUso(codigo, nome, antigo?.id)) {
-          responder({ ok: false, erro: "Esse nome já está em uso nessa sala." });
+          responder({ ok: false, erro: "Esse nome já está em uso nessa sala.", motivo: "nome-em-uso" });
           return;
         }
 

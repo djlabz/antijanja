@@ -133,6 +133,7 @@ describe("entrar na sala", () => {
     await entrar(await conectar(), codigo, "Ana");
     const resposta = await entrar(await conectar(), codigo, "ana");
     assert.equal(resposta.ok, false);
+    assert.equal((resposta as { motivo?: string }).motivo, "nome-em-uso");
   });
 
   it("numera convidados", async () => {
@@ -300,6 +301,7 @@ describe("sala trancada", () => {
 
     const novo = await entrar(await conectar(), codigo, "Beto");
     assert.equal(novo.ok, false);
+    assert.equal((novo as { motivo?: string }).motivo, "trancada");
 
     const voltando = await entrar(await conectar(), codigo, "Ana", "sessao-ana");
     assert.equal(voltando.ok, true);
@@ -344,12 +346,16 @@ describe("limite de tentativas de entrar", () => {
     await new Promise<void>((ok) => httpLimitado.listen(0, "127.0.0.1", ok));
     const urlLimitada = `http://127.0.0.1:${(httpLimitado.address() as AddressInfo).port}`;
     try {
-      const respostas: boolean[] = [];
+      const respostas = [];
       for (let i = 0; i < 5; i++) {
         const c = await conectar(urlLimitada);
-        respostas.push((await entrar(c, sala(), `Pessoa ${i}`)).ok);
+        respostas.push(await entrar(c, sala(), `Pessoa ${i}`));
       }
-      assert.deepEqual(respostas, [true, true, true, false, false]);
+      assert.deepEqual(
+        respostas.map((r) => r.ok),
+        [true, true, true, false, false]
+      );
+      assert.equal((respostas[3] as { motivo?: string }).motivo, "limite");
     } finally {
       // `io.close()` derruba os sockets abertos e fecha o http junto; fechar só
       // o http ficaria esperando as conexões (e o teste pendurado pra sempre).
