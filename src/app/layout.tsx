@@ -1,4 +1,5 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
+import { headers } from "next/headers";
 import { Geist, Geist_Mono, Pixelify_Sans } from "next/font/google";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import "./globals.css";
@@ -23,9 +24,45 @@ const pixelifySans = Pixelify_Sans({
   weight: ["500", "600", "700"],
 });
 
-export const metadata: Metadata = {
-  title: "Sinal",
-  description: "Compartilhe sua tela com seus amigos, sem servidor pago no meio.",
+const DESCRICAO = "Compartilhe sua tela com seus amigos, sem servidor pago no meio.";
+
+/**
+ * Endereço público do app, pra montar as URLs absolutas da prévia do link
+ * (a imagem do WhatsApp precisa de URL completa). Ordem: a URL do túnel que o
+ * `server.ts` descobriu, a do Render, e por fim o que o próprio pedido diz.
+ * Os dois primeiros existem porque, atrás de um túnel, o `Host` que chega
+ * aqui costuma ser `localhost` — e o robô do WhatsApp não alcança isso.
+ */
+async function urlBase() {
+  const fixa = process.env.URL_PUBLICA ?? process.env.RENDER_EXTERNAL_URL;
+  try {
+    if (fixa) return new URL(fixa);
+    const h = await headers();
+    const host = h.get("x-forwarded-host") ?? h.get("host") ?? "localhost:3000";
+    const proto = h.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+    return new URL(`${proto}://${host}`);
+  } catch {
+    return new URL("http://localhost:3000");
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  return {
+    metadataBase: await urlBase(),
+    // "Sala abc" nas páginas de sala vira "Sala abc · Sinal"; a home fica "Sinal".
+    title: { default: "Sinal", template: "%s · Sinal" },
+    description: DESCRICAO,
+    // A imagem vem de `opengraph-image.tsx` (raiz e por sala).
+    openGraph: { siteName: "Sinal", locale: "pt_BR", type: "website", title: "Sinal", description: DESCRICAO },
+    twitter: { card: "summary_large_image" },
+  };
+}
+
+// Barra do navegador no celular combina com o fundo (e `colorScheme` evita o
+// flash branco ao abrir).
+export const viewport: Viewport = {
+  themeColor: "#020203",
+  colorScheme: "dark",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

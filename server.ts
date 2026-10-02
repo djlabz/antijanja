@@ -52,6 +52,7 @@ function iniciarTunelCloudflare(
     const encontrado = texto.match(regexUrl);
     if (encontrado && encontrado[0] !== linkPublicoAtual) {
       linkPublicoAtual = encontrado[0];
+      process.env.URL_PUBLICA = linkPublicoAtual; // lido pelo layout (prévia do link, ADR 027).
       console.log(`\n> Link público (compartilhe com os amigos): ${linkPublicoAtual}\n`);
       io.emit("link:publico", linkPublicoAtual);
     }

@@ -56,5 +56,21 @@ no `localStorage`) quando chega mensagem ou alguém começa a transmitir.
   vazio quando a pessoa está sozinha.
 - No celular, botão "Compartilhar…" abre o menu nativo do aparelho.
 
+## Sala trancável
+Diálogo "Compartilhar sala" → "Trancar": ninguém novo entra (nem com o link);
+quem já está, ou volta de uma queda, continua. Cadeado no cabeçalho. Qualquer
+pessoa dentro tranca/destranca. O servidor também limita tentativas de entrar
+por IP (40/min).
+
+## Quem transmite acompanha (PC)
+Botão "N assistindo" no cabeçalho enquanto se transmite: lista de quem recebe,
+estado, Mbps por pessoa e total, e aviso quando o envio de internet não dá
+conta. A engrenagem de qualidade mostra a conta (pessoas × Mbps por pessoa).
+
+## Notificações do sistema (PC)
+Sino no cabeçalho liga notificações do Windows/macOS pra mensagem nova ou
+alguém transmitindo quando a janela está escondida OU sem foco. Clicar volta
+pra janela.
+
 ## Respeita "reduzir movimento"
 Sem transições nem animações; reações viram só um fade.

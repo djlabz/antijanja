@@ -117,7 +117,10 @@ janela flutuante (PiP, também no botão do cabeçalho; abre sozinha ao trocar
 de aba no Chrome/Edge) · `/` chat. Tem reações rápidas que flutuam sobre o
 vídeo, destaque de tela quando há mais de uma transmissão e aviso no título
 da aba quando chega mensagem. No celular o vídeo fica fixo no topo com abas
-Chat/Participantes. Detalhes em `docs/features/001-uso-no-celular-e-desktop.md`.
+Chat/Participantes. Quem transmite vê quem está recebendo (e se alguém
+está travando); dá pra trancar a sala pelo diálogo de convite e ligar
+notificações do sistema (sino) pra ser avisado com outra janela por cima.
+Detalhes em `docs/features/001-uso-no-celular-e-desktop.md`.
 
 ## Comandos
 
@@ -143,6 +146,9 @@ TURN_CREDENTIAL=senha
 ```
 
 Não precisa rebuildar: o servidor entrega isso a cada pessoa ao entrar na sala.
+
+A prévia do link no WhatsApp usa a URL pública do túnel/Render sozinha; se
+precisar forçar outra, defina `URL_PUBLICA=https://seu-endereco`.
 Sem essas variáveis, o app usa só STUN, como antes.
 
 ## Limitações conhecidas

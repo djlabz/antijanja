@@ -71,7 +71,26 @@
       de aba (ADR 026). A "tela preta" reportada era o PortMaster no PC do
       usuário — resolvido por fora do app (ADR 025).
 
+- [x] Pacote da 2ª auditoria (ADRs 027-029): texto da tela de nome, código da
+      sala tratado e de 8 caracteres com `crypto`, limite de tentativas por IP,
+      sala trancável, CI no GitHub, headers de segurança, healthcheck, logs do
+      servidor, painel de quem recebe (transmissor), estimativa de upload,
+      notificações do sistema, prévia do link (Open Graph), `selfBrowserSurface`,
+      limpeza de arquivos sobrando; testes de parser, código e conexões WebRTC
+      (49 no total).
+
 ## Próximos passos possíveis (não iniciados)
+- [ ] **Ver o CI rodar no GitHub** (workflow criado, nunca executado lá) e o
+      cartão de prévia no WhatsApp com uma URL pública de verdade.
+- [ ] Ver a notificação do Windows e o painel do transmissor com 3+
+      espectadores num uso real.
+- [ ] Limitar o histórico do chat em memória: não foi feito porque o contador
+      de não lidas e o `useAvisos` contam por tamanho da lista — precisa
+      trocar por ids de mensagem antes.
+- [ ] Docker rodar como usuário `node` (não testado aqui: `npx tsx` precisa de
+      cache gravável).
+- [ ] Ajuste automático do bitrate pelo número de espectadores (precisa o
+      usuário informar o upload dele; o app não consegue medir sozinho).
 - [ ] **Ver o PiP automático abrir num uso real** (trocar de aba com uma
       transmissão tocando) e conferir se também abre ao ir pra outro programa.
 - [ ] Testar o ICE restart de ponta a ponta (derrubar a rede por uns segundos
