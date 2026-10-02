@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Radio } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,19 +13,15 @@ import {
 } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { EstadoConexao, LimiteEnvio, SaudeSaida } from "@/lib/conexoes-webrtc";
+import type { LinhaSaude } from "@/hooks/use-saude-transmissao";
 import type { ParticipantId } from "@/lib/socket-events";
 
 interface StatusTransmissaoProps {
-  /** Lê a saúde de cada conexão de saída (ver `saude` em `conexoes-webrtc`). */
-  ler: () => Promise<SaudeSaida[]>;
+  /** Saúde de cada conexão de saída, já lida (ver `useSaudeTransmissao`). */
+  linhas: LinhaSaude[];
   nomeDe: (id: ParticipantId) => string;
   /** Limite configurado por espectador, em Mbps (`null` = sem limite). */
   bitrateMbps: number | null;
-}
-
-interface Linha extends SaudeSaida {
-  /** Vazão atual pra esse espectador, em Mbps (null até ter duas leituras). */
-  mbps: number | null;
 }
 
 const ROTULO_ESTADO: Record<EstadoConexao, string> = {
@@ -49,41 +45,11 @@ function comProblema(l: SaudeSaida) {
 /**
  * Pra quem está transmitindo: quantos recebem, quem está com problema e quanto
  * de upload sai. Antes só o espectador via que estava travando — quem
- * transmite ficava no escuro (ADR 027). Faz uma leitura a cada 2,5s enquanto
- * a aba está visível.
+ * transmite ficava no escuro (ADR 027). As leituras (a cada 2,5s) vêm de
+ * `useSaudeTransmissao`.
  */
-export function StatusTransmissao({ ler, nomeDe, bitrateMbps }: StatusTransmissaoProps) {
+export function StatusTransmissao({ linhas, nomeDe, bitrateMbps }: StatusTransmissaoProps) {
   const [aberto, setAberto] = useState(false);
-  const [linhas, setLinhas] = useState<Linha[]>([]);
-
-  useEffect(() => {
-    let ativo = true;
-    let anterior = new Map<ParticipantId, { bytes: number; em: number }>();
-
-    async function atualizar() {
-      if (document.hidden) return;
-      const leituras = await ler().catch(() => null);
-      if (!ativo || !leituras) return;
-      const proximo = new Map<ParticipantId, { bytes: number; em: number }>();
-      setLinhas(
-        leituras.map((l) => {
-          const antes = anterior.get(l.id);
-          proximo.set(l.id, { bytes: l.bytes, em: l.em });
-          const mbps =
-            antes && l.em > antes.em ? ((l.bytes - antes.bytes) * 8) / ((l.em - antes.em) * 1000) : null;
-          return { ...l, mbps };
-        })
-      );
-      anterior = proximo;
-    }
-
-    atualizar();
-    const id = setInterval(atualizar, 2500);
-    return () => {
-      ativo = false;
-      clearInterval(id);
-    };
-  }, [ler]);
 
   if (linhas.length === 0) return null;
 

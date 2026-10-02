@@ -3,7 +3,7 @@
 import { Info, MonitorUp, MonitorX, Volume2, VolumeX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import type { SaudeSaida } from "@/hooks/use-sala";
+import type { LinhaSaude } from "@/hooks/use-saude-transmissao";
 import type { ParticipantId } from "@/lib/socket-events";
 import { StatusTransmissao } from "./status-transmissao";
 
@@ -14,7 +14,8 @@ interface ControlesTransmissaoProps {
   aoCompartilhar: () => void;
   aoParar: () => void;
   audio: { existe: boolean; ligado: boolean; alternar: () => void };
-  lerSaude: () => Promise<SaudeSaida[]>;
+  /** Saúde de cada conexão de saída (ver `useSaudeTransmissao`). */
+  linhas: LinhaSaude[];
   nomeDe: (id: ParticipantId) => string;
   bitrateMbps: number | null;
 }
@@ -30,7 +31,7 @@ export function ControlesTransmissao({
   aoCompartilhar,
   aoParar,
   audio,
-  lerSaude,
+  linhas,
   nomeDe,
   bitrateMbps,
 }: ControlesTransmissaoProps) {
@@ -86,7 +87,7 @@ export function ControlesTransmissao({
       )}
 
       {estouCompartilhando && (
-        <StatusTransmissao ler={lerSaude} nomeDe={nomeDe} bitrateMbps={bitrateMbps} />
+        <StatusTransmissao linhas={linhas} nomeDe={nomeDe} bitrateMbps={bitrateMbps} />
       )}
     </>
   );

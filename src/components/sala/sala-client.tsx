@@ -17,6 +17,8 @@ import { useAvisos } from "@/hooks/use-avisos";
 import { usePipAutomatico } from "@/hooks/use-pip-automatico";
 import { useMediaQuery } from "@/hooks/use-media-query";
 import { ultimasPendentes } from "@/lib/historico-chat";
+import { useSaudeTransmissao } from "@/hooks/use-saude-transmissao";
+import { useSugestaoQualidade } from "@/hooks/use-sugestao-qualidade";
 import {
   diagnosticarCaptura,
   explicarErroDeCaptura,
@@ -143,6 +145,20 @@ export function SalaClient({ codigo }: SalaClientProps) {
   // Trocou de aba (ex.: foi responder no WhatsApp Web): a transmissão que
   // está passando vira janelinha flutuante sozinha, onde o navegador deixa.
   usePipAutomatico(Object.keys(streamsRemotos).length > 0, abrirPip);
+
+  // Pra quem transmite: a saúde de cada espectador (painel "N assistindo") e,
+  // quando o upload não dá conta, a sugestão de baixar a qualidade (ADR 035).
+  const {
+    sugestao: sugestaoQualidade,
+    avaliar: avaliarSaudeTransmissao,
+    aceitar: aceitarSugestaoQualidade,
+    dispensar: dispensarSugestaoQualidade,
+  } = useSugestaoQualidade(estouCompartilhando, atualizarQualidadeAoVivo);
+  const saudeTransmissao = useSaudeTransmissao(
+    lerSaudeTransmissao,
+    estouCompartilhando,
+    avaliarSaudeTransmissao
+  );
 
   // Só desktop: esconde a lista de participantes pra dar mais largura ao
   // vídeo (vídeo + chat). `destaqueId` é a tela ampliada quando há 2+ (as
@@ -375,7 +391,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
             aoCompartilhar={compartilhar}
             aoParar={pararCompartilhamento}
             audio={{ existe: temAudio, ligado: audioLigado, alternar: alternarAudio }}
-            lerSaude={lerSaudeTransmissao}
+            linhas={saudeTransmissao}
             nomeDe={(id) => participantes.find((p) => p.id === id)?.nome ?? "Participante"}
             bitrateMbps={bitrateMbps}
           />
@@ -444,6 +460,30 @@ export function SalaClient({ codigo }: SalaClientProps) {
             </Button>
             <Button size="sm" variant="ghost" onClick={dispensarAvisoAudio}>
               Entendi
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {sugestaoQualidade && (
+        <div
+          role="status"
+          className="mx-3 mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-white/[0.05] px-4 py-3 text-sm md:mx-4"
+        >
+          <p className="min-w-0 flex-1 basis-72">
+            {sugestaoQualidade.quantos === 1
+              ? "1 pessoa está recebendo sua tela com a imagem reduzida"
+              : `${sugestaoQualidade.quantos} pessoas estão recebendo sua tela com a imagem reduzida`}
+            : seu envio de internet não está dando conta. Baixar pra{" "}
+            <strong className="font-medium">{sugestaoQualidade.resumo}</strong> costuma
+            resolver.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={aceitarSugestaoQualidade}>
+              Reduzir agora
+            </Button>
+            <Button size="sm" variant="ghost" onClick={dispensarSugestaoQualidade}>
+              Agora não
             </Button>
           </div>
         </div>
