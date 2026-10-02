@@ -90,6 +90,9 @@
       links clicáveis, lista limitada a 200 no cliente (contagem por total) e
       "Conectando à sala…" no lugar de "Você está sozinho" (ADR 032).
 
+- [x] Revisão com as skills (ADR 033): log de subida do servidor, roteiros de
+      reconexão em `e2e/`, regra única de pendentes, cabeçalho dividido.
+
 ## Próximos passos possíveis (não iniciados)
 - [ ] Ver a sala num **iPad/celular de verdade** (cabeçalho em duas linhas,
       alvos de 44px, captura sem suporte) e com **leitor de tela**; medir o
@@ -113,8 +116,8 @@
       no meio de uma transmissão); não foi possível no ambiente de teste.
 - [ ] **Testar num celular de verdade** o que só foi simulado: tela cheia em
       paisagem, Wake Lock, PiP, menu de compartilhar nativo, teclado.
-- [ ] Servidor TURN: sem ele, quem assiste pelo 4G (NAT restritivo) pode não
-      receber o vídeo (ADR 003). Só vale se o teste real mostrar o problema.
+- [x] Servidor TURN: decidido **não** provisionar (ADR 033). O código segue
+      aceitando as variáveis de ambiente; o aviso de falha de conexão explica.
 - [ ] Zoom com pinça no vídeo (celular).
 - [ ] Instalar como app (PWA).
 - [ ] Limpar o cabeçalho no celular (vários ícones sem texto; "Compartilhar

@@ -295,3 +295,18 @@
 - **Privacidade**: quem entra numa sala vê as últimas 50 mensagens. A sala trancada (ADR 027) continua sendo o jeito de impedir isso; o histórico não vai pra disco nem pra fora do processo.
 - **Limite honesto**: testado no navegador com duas abas (histórico recebido, link clicável, estado "Conectando" com o socket bloqueado); não vi uma reconexão real depois de uma queda de rede — só o servidor (testes de integração) e a regra de mesclagem (teste unitário) a cobrem.
 
+---
+
+## ADR 033 - Rumo do projeto (hospedagem, TURN, histórico) e o que veio da revisão com as skills
+- **Data**: 2026-10-02
+- **Decisões do usuário** (entrevista no estilo grill-me):
+  1. **Hospedagem que dorme** (Render gratuito) fica. Não voltar a depender do PC de quem hospeda como caminho principal (ADR 017 continua valendo). Consequência assumida: a 1ª visita depois de 15 min parado demora 30–60s; o app mostra "Conectando à sala…" (ADR 032) e agora registra o tempo de cada etapa da subida.
+  2. **Sem servidor TURN.** O código continua aceitando `TURN_URL/USERNAME/CREDENTIAL` (ADR 025), mas o projeto não vai provisionar um. Quem assiste por 4G/rede restrita pode não receber o vídeo; o aviso "Não foi possível conectar com X" explica isso na tela (firewall, VPN, 4G).
+  3. **Histórico do chat não sobrevive** a nada: só existe enquanto houver alguém na sala (a sala vazia é apagada com o histórico). Já era o comportamento do ADR 032; fica como regra, não como limitação a corrigir.
+- **Revisão com as skills (TDD, systematic-debugging, webapp-testing, karpathy)**:
+  - **Reconexão de verdade testada no navegador** (`e2e/reconexao.playwright.js`): com a rede cortada e o WebSocket fechado, a pessoa vê "Reconectando…", volta e recebe a mensagem perdida uma vez, sem duplicar, as próprias mensagens continuam dela e quem ficou viu "saiu/entrou". Descoberta: `setOffline` sozinho **não** derruba um WebSocket já aberto (o primeiro teste passou sem nunca reconectar); é preciso fechá-lo também.
+  - **Deploy do Render que travou 6 min** (log: app subiu às 11:17, porta nunca detectada até o timeout às 11:26): reproduzido localmente em 2,2s e ~160 MB, então não era o código; um novo deploy manual funcionou. Causa não provada (provável falha do ambiente). `server.ts` agora loga iniciando / Next preparado / porta aberta / 1ª requisição, e sai com erro claro se o Next ou o http falharem.
+  - **Regra única de "mensagens pendentes"** (`ultimasPendentes`, com teste): estava copiada em `sala-client` e `use-avisos`.
+  - **Cabeçalho da sala dividido pelas interfaces pequenas**: `ControlesTransmissao` (parar/compartilhar, áudio, painel) e `BotoesAvisos` (cinema, som, sino, copiar link). Não dividi "por tamanho": extrair com ~28 props só mudaria o arquivo de lugar. `sala-client.tsx` 745 → 645 linhas.
+- **Limite honesto**: o cenário de reconexão cobre a camada do socket e do chat; o **reinício do ICE do vídeo** numa queda real continua sem teste (a captura falsa serve pra ver o vídeo chegar, não pra provar a recuperação). Os roteiros `e2e/` não rodam no CI.
+

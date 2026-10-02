@@ -293,3 +293,9 @@
 - Decisão sobre o Render: não criei tela "acordando" separada; na 1ª visita é a hospedagem que segura a página. O aviso fica no estado Conectando (8s).
 - Pendente: TURN (precisa de credenciais do usuário), testar em celular/iPad de verdade, testes automáticos no navegador (skill webapp-testing).
 
+## 2026-10-02 (6) - Decisões de rumo e revisão com as skills (ADR 033)
+- Usuário decidiu: hospedagem que dorme (Render), **sem TURN**, histórico do chat zera quando a sala esvazia.
+- Deploy do Render travou 6 min e um deploy manual resolveu; produção validada depois (histórico, motivo da recusa, links, alvos de 44px).
+- Feito: roteiros `e2e/` (reconexão com queda real do WebSocket, estado Conectando), log de subida do servidor, `ultimasPendentes`, `ControlesTransmissao`/`BotoesAvisos`. 80 testes.
+- Pendente: reinício do ICE do vídeo numa queda real; celular/iPad de verdade; commits desta etapa ainda sem push.
+

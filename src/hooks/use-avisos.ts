@@ -236,3 +236,6 @@ export function useAvisos({ mensagens, totalMensagens, participantes, euId }: Av
     alternarNotificacao,
   };
 }
+
+/** O que `useAvisos` devolve (os botões do cabeçalho recebem tudo junto). */
+export type Avisos = ReturnType<typeof useAvisos>;

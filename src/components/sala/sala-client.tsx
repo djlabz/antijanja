@@ -3,27 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
-  Bell,
-  BellOff,
-  Info,
   Lock,
   LogOut,
   MonitorUp,
-  MonitorX,
-  PanelLeftClose,
-  PanelLeftOpen,
   PictureInPicture2,
   SquarePlay as YoutubeIcon,
-  Volume2,
-  VolumeX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { useSala } from "@/hooks/use-sala";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
@@ -48,11 +35,11 @@ import { YoutubePlayer } from "./youtube-player";
 import { ListaParticipantes } from "./lista-participantes";
 import { Chat } from "./chat";
 import { CompartilharSalaDialog } from "./compartilhar-sala-dialog";
-import { CopiarLinkButton } from "./copiar-link-button";
 import { LinkConvite } from "./link-convite";
 import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
-import { StatusTransmissao } from "./status-transmissao";
+import { ControlesTransmissao } from "./controles-transmissao";
+import { BotoesAvisos } from "./botoes-avisos";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
 import { EscolherNomeSala } from "./escolher-nome-sala";
 import { ConectandoSala } from "./conectando-sala";
@@ -176,14 +163,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
 
   // Contador no título da aba + bipe quando chega mensagem ou alguém começa
   // a transmitir com a aba escondida (ver `useAvisos`).
-  const {
-    somLigado,
-    alternarSom,
-    notificacaoDisponivel,
-    notificacaoLigada,
-    notificacaoBloqueada,
-    alternarNotificacao,
-  } = useAvisos({ mensagens, totalMensagens, participantes, euId });
+  const avisos = useAvisos({ mensagens, totalMensagens, participantes, euId });
 
   // Atalhos: F tela cheia, M mudo, / chat, C modo cinema. Ignorados
   // enquanto se digita (campo de texto) ou com um diálogo aberto; o slider
@@ -383,67 +363,16 @@ export function SalaClient({ codigo }: SalaClientProps) {
             estreita), quebram de linha em vez de estourar a largura. */}
         <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:gap-x-3">
 
-          {estouCompartilhando ? (
-            <Button
-              variant="destructive"
-              size="sm"
-              className="gap-1.5"
-              onClick={pararCompartilhamento}
-            >
-              <MonitorX className="size-3.5" />
-              <span className="max-sm:sr-only">Parar compartilhamento</span>
-            </Button>
-          ) : podeCompartilhar ? (
-            <div className="flex items-center gap-1">
-              <Button size="sm" variant="outline" className="gap-1.5" onClick={compartilhar}>
-                <MonitorUp className="size-3.5" />
-                <span className="max-sm:sr-only">Compartilhar tela</span>
-              </Button>
-              <Tooltip>
-                {/* Botão de verdade (não um `span`): assim o teclado alcança a
-                    dica, e o foco é o que abre o tooltip. */}
-                <TooltipTrigger
-                  render={
-                    <button
-                      type="button"
-                      aria-label="Dica sobre áudio ao compartilhar"
-                      className="hidden size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:flex"
-                    />
-                  }
-                >
-                  <Info className="size-3.5" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-64">
-                  Pra levar o áudio de um vídeo sem pegar a voz do Discord, escolha
-                  compartilhar uma aba do navegador ou uma janela (não a tela
-                  toda) quando ele perguntar o quê compartilhar. Dá pra ligar e
-                  desligar o áudio durante a transmissão.
-                </TooltipContent>
-              </Tooltip>
-            </div>
-          ) : null}
-
-          {estouCompartilhando && temAudio && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="gap-1.5"
-              onClick={alternarAudio}
-              aria-pressed={audioLigado}
-              title={audioLigado ? "Tirar o áudio da transmissão" : "Voltar a enviar o áudio"}
-            >
-              {audioLigado ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
-              <span className="max-sm:sr-only">{audioLigado ? "Áudio ligado" : "Sem áudio"}</span>
-            </Button>
-          )}
-
-          {estouCompartilhando && (
-            <StatusTransmissao
-              ler={lerSaudeTransmissao}
-              nomeDe={(id) => participantes.find((p) => p.id === id)?.nome ?? "Participante"}
-              bitrateMbps={bitrateMbps}
-            />
-          )}
+          <ControlesTransmissao
+            estouCompartilhando={estouCompartilhando}
+            podeCompartilhar={podeCompartilhar}
+            aoCompartilhar={compartilhar}
+            aoParar={pararCompartilhamento}
+            audio={{ existe: temAudio, ligado: audioLigado, alternar: alternarAudio }}
+            lerSaude={lerSaudeTransmissao}
+            nomeDe={(id) => participantes.find((p) => p.id === id)?.nome ?? "Participante"}
+            bitrateMbps={bitrateMbps}
+          />
 
           {!fonteVideo && (
             <AdicionarFonteDialog trigger={botaoAdicionarVideo} aoAdicionar={adicionarFonteVideo} />
@@ -467,41 +396,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
             </Button>
           )}
 
-          <div className="hidden items-center gap-0.5 md:flex">
-            <BotaoCabecalho
-              rotulo={cinema ? "Mostrar participantes (C)" : "Modo cinema (C)"}
-              onClick={alternarCinema}
-            >
-              {cinema ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-            </BotaoCabecalho>
-            {/* Som, sino e copiar link só de 1024px pra cima: em tablet o
-                cabeçalho já quebra em duas linhas (o link sai pelo botão
-                "Compartilhar sala"). O modo cinema fica: é a única forma de
-                trazer a lista de participantes de volta. */}
-            <span className="hidden items-center gap-0.5 lg:flex">
-              <BotaoCabecalho
-                rotulo={somLigado ? "Silenciar avisos sonoros" : "Ligar avisos sonoros"}
-                onClick={alternarSom}
-              >
-                {somLigado ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-              </BotaoCabecalho>
-              {notificacaoDisponivel && (
-                <BotaoCabecalho
-                  rotulo={
-                    notificacaoBloqueada
-                      ? "Notificações bloqueadas — libere nas configurações do site no navegador"
-                      : notificacaoLigada
-                        ? "Desligar notificações do sistema"
-                        : "Ligar notificações do sistema (mensagens e transmissões quando você estiver em outra janela)"
-                  }
-                  onClick={alternarNotificacao}
-                >
-                  {notificacaoLigada ? <Bell className="size-4" /> : <BellOff className="size-4" />}
-                </BotaoCabecalho>
-              )}
-              <CopiarLinkButton linkPublico={linkPublico} />
-            </span>
-          </div>
+          <BotoesAvisos
+            cinema={cinema}
+            alternarCinema={alternarCinema}
+            avisos={avisos}
+            linkPublico={linkPublico}
+          />
 
           <CompartilharSalaDialog
             codigo={codigo}
@@ -741,35 +641,5 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </aside>
       </div>
     </div>
-  );
-}
-
-/** Botão de ícone do cabeçalho, com dica no hover. */
-function BotaoCabecalho({
-  rotulo,
-  onClick,
-  children,
-}: {
-  rotulo: string;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <Button
-            type="button"
-            size="icon-sm"
-            variant="ghost"
-            onClick={onClick}
-            aria-label={rotulo}
-          />
-        }
-      >
-        {children}
-      </TooltipTrigger>
-      <TooltipContent>{rotulo}</TooltipContent>
-    </Tooltip>
   );
 }
