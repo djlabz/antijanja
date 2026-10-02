@@ -280,3 +280,10 @@
 - O app **não consegue** separar o Discord do áudio do sistema na tela inteira; o que resolve de verdade é compartilhar aba/janela ou separar as saídas de áudio no Windows. Isso último e o "áudio da janela" não foram testados num Windows real.
 - Teste no navegador embutido: `getDisplayMedia` falso com trilha de áudio e `getSettings()` sobrescrito (`displaySurface: "monitor"` ou `"browser"`).
 
+## 2026-10-02 (4) - Auditoria Impeccable da sala e da home (ADR 031)
+- Pedido: passar pelas skills do Impeccable (critique/audit/harden/adapt/clarify/optimize) e "resolver todas". Medi no navegador embutido (contraste via canvas, alvos de toque, scroll horizontal) e corrigi em 5 commits locais (`efd3386`, `38ddc00`, `0d58cca`, `518494c`, `7ce44cf`), **sem push** (o `eecf94e` do ADR 030 também segue só local).
+- Achados que a leitura do código não mostrava e a medição sim: o cabeçalho estourava em tablet com toque (943px em 780px) depois dos alvos de 44px; botões com texto `hidden sm:inline` ficavam sem nome acessível no celular; convidado entrava/saía/entrava (log do servidor).
+- 61 testes (`captura-de-tela`, `reacoes-store`, motivo da recusa). Lint e tsc limpos.
+- Pendente: ver tudo num celular/iPad de verdade; ADR 031 lista o que não foi verificado.
+- O usuário adicionou skills em `.claude/skills/` (frontend-design, webapp-testing, TDD, systematic-debugging, karpathy-guidelines, grill-me, etc.); ainda não usei todas — só o TDD no helper de captura.
+

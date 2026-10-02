@@ -82,7 +82,16 @@
 - [x] Áudio ao compartilhar: `windowAudio`, aviso de tela inteira com áudio,
       botão pra ligar/desligar o áudio da transmissão (ADR 030).
 
+- [x] Auditoria Impeccable da sala e da home (ADR 031): captura que falhava em
+      silêncio, contraste, alvos de 44px, tablet, motivo do erro de entrada,
+      convidado conectando duas vezes, reações fora do estado da sala.
+
 ## Próximos passos possíveis (não iniciados)
+- [ ] Ver a sala num **iPad/celular de verdade** (cabeçalho em duas linhas,
+      alvos de 44px, captura sem suporte) e com **leitor de tela**; medir o
+      ganho das reações com o Profiler (ADR 031).
+- [ ] Cabeçalho em tablet com o painel do transmissor + áudio + janela
+      flutuante juntos: pode quebrar em três linhas; ver se vale um menu "Mais".
 - [ ] Confirmar no Windows o "áudio da janela" do Chrome 141 e o truque de
       separar a saída do Discord (ADR 030); ajustar o README conforme o que
       funcionar de verdade.

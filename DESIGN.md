@@ -171,6 +171,16 @@ chat, vídeo, formulário) fica dentro de uma caixa fechada (card, painel com
 fundo+borda). Enclosura só é permitida em superfícies que PRECISAM dela pra
 função — um dialog ou popover flutuante — nunca como decoração de layout.
 
+**The Legible-Dim Rule.** Esmaecer é permitido, mas texto continua com 4,5:1
+de contraste (medido na auditoria de 2026-10-02). Por isso a profundidade da
+fila de participantes vai na COR do nome e no avatar, não numa opacidade na
+linha inteira — e texto secundário não usa `/70`, `/80` ou menos sobre o vazio.
+
+**Hex nas imagens de prévia.** As imagens Open Graph (`opengraph-image.tsx`)
+são desenhadas por um motor que não lê `oklch`; lá valem equivalentes em hex:
+vazio `#020203`, marfim `#f4efe6`, sinal-âmbar `#f4a437`, poeira-3 `#a9a9ad`,
+poeira-2 `#6b6b70`. É aproximação consciente, não paleta nova.
+
 ### Identity color (por participante, gerado — não é paleta fixa)
 Continua igual ao sistema anterior: `oklch(0.6 0.14 <matiz>)` derivado por
 hash do id do participante (`src/lib/cor-participante.ts`). O que mudou é a
@@ -275,7 +285,7 @@ o canto arredondado cairia num quadro preto e o vídeo continuaria reto.
 
 ### Fila de Participantes (era "Lista de Participantes")
 - **Ordenação:** quem compartilha primeiro (plano da frente); resto depois,
-  em opacidade 55%.
+  com o nome em `foreground/70` e o avatar a 85% (ver Legible-Dim Rule).
 - **Marcador de identidade:** círculo de 24px, cor gerada por hash do id,
   iniciais em preto por cima.
 - **Linha em pílula** com hover suave (`white/4%`) — fica dentro do painel
@@ -318,4 +328,12 @@ agora). Mesma lógica de funcionamento do sistema anterior
 
 ### Abas do celular
 Controle segmentado em pílula (`white/5%`) com a aba ativa em `white/10%`;
-o contador de não lidas é uma pílula âmbar.
+o contador de não lidas é uma pílula âmbar. Semanticamente é um grupo de
+botões com `aria-pressed` (não `role=tab`: não há painéis ligados por
+`aria-controls`). Alvos de 44px de altura.
+
+### Alvos de toque
+Em dispositivos sem hover (`@media (hover: none)`) todo `Button` tem no mínimo
+44×44px e o `Input` 44px de altura; no desktop os tamanhos seguem os da escala
+(`h-8` etc.). O cabeçalho da sala quebra em duas linhas em vez de estourar a
+largura (tablet, janela estreita).

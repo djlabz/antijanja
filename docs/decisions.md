@@ -262,3 +262,21 @@
 - **Efeito prático**: o app não consegue tirar o Discord do áudio do sistema por conta própria (a captura não separa por aplicativo na tela inteira); o ganho é a pessoa saber disso na hora e ter um botão pra cortar o áudio em vez de descobrir pelo eco dos amigos.
 - **Limite honesto**: vistos no navegador o aviso (tela inteira), a ausência dele (aba), o botão ligando/desligando a trilha e o pedido `windowAudio` chegando ao Chrome; **não** foi testado o seletor real do Chrome com "áudio da janela" (a documentação do Chrome 141 não diz em quais sistemas ele funciona — confirmar no Windows) nem com uma chamada de Discord de verdade.
 
+---
+
+## ADR 031 - Auditoria Impeccable da sala e da home: o que quebrava em silêncio, no toque e em tablet
+- **Data**: 2026-10-02
+- **Contexto**: auditoria (critique + audit + harden + adapt + clarify + optimize do Impeccable) da sala e da home, com medição no navegador. Nota 15/20 no audit, 28/40 no critique. Os achados reais foram corrigidos num pacote só, um commit por assunto.
+- **Decisões**:
+  1. **Compartilhar tela nunca falha em silêncio** (`src/lib/captura-de-tela.ts`). O `catch {}` tratava todo erro como "cancelou o seletor". Agora `diagnosticarCaptura()` separa "ok", "inseguro" (http: `navigator.mediaDevices` não existe fora de https/localhost) e "sem suporte" (celular): nos dois últimos o botão some e a sala explica o porquê. `explicarErroDeCaptura()` devolve `null` só pra cancelamento (`AbortError`, `NotAllowedError` comum) e um texto pros outros (sistema bloqueou, outro programa usando a tela, etc.), mostrado num aviso com "Entendi".
+  2. **Contraste ≥ 4,5:1 medido** (home e sala, 0 falhas): sem opacidade em texto pequeno; a lista de participantes apaga a cor do nome e o avatar (85%), não a linha toda (o "(você)" estava em 2,5:1). Virou a "Legible-Dim Rule" no DESIGN.md.
+  3. **Alvos de toque de 44px** só em `hover: none` (Button `min-h/min-w-11`, Input `h-11`), pra não mudar o desktop. As abas Chat/Participantes deixaram de ser `role=tab` sem painel (agora grupo de botões com `aria-pressed`).
+  4. **Botões só com ícone no celular ficavam sem nome acessível** (`hidden sm:inline` é `display:none`, que some do leitor de tela) → `max-sm:sr-only`.
+  5. **Tablet / janela estreita**: a lista de participantes começa recolhida abaixo de 1024px (`useMediaQuery`; C ou o botão do cabeçalho valem por cima), colunas com `minmax(0,1fr)` (o conteúdo da sala vazia causava scroll horizontal), cabeçalho quebra de linha em vez de estourar (943px de scroll em 780px) e som/sino/copiar link só de 1024px pra cima.
+  6. **Erro de entrada com motivo**: `sala:entrar` devolve `motivo` (`trancada`, `nome-em-uso`, `limite`). Nome repetido oferece "Escolher outro nome"; sala trancada explica e oferece "Entrar em outra sala". "Tentar de novo" sozinho repetia o mesmo erro.
+  7. **Convidado entrava, saía e entrava de novo** (visto no log): o nome estava nas dependências do efeito de `useSala` e o "Convidado N" devolvido pelo servidor o refazia. Agora vai por ref; o cleanup (que também para as trilhas da transmissão) só roda ao mudar de sala.
+  8. **Reações fora do estado da sala** (`src/lib/reacoes-store.ts`): cada reação re-renderizava a `SalaClient` e todos os `VideoTile`; agora só `ReacoesFlutuantes` assina (`useSyncExternalStore`). Não foi medido o ganho (só a estrutura mudou).
+  9. **Texto da home**: "roda direto do seu computador" era falso no site hospedado → "o vídeo vai direto entre vocês" (verdadeiro nos dois casos).
+- **Fora do pacote de propósito**: texto de 12px em quase todo o secundário (é o tom do DESIGN.md), controles do vídeo só no hover (têm `focus-within` e ficam fixos no toque).
+- **Limite honesto**: medido em emulação do navegador embutido (que tem `getDisplayMedia`, então o caso "celular sem a API" foi simulado removendo-a). Não testado: celular/iPad de verdade, leitor de tela, o ganho de performance das reações, o cabeçalho com o painel do transmissor + áudio + janela flutuante juntos em tablet.
+
