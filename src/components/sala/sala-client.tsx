@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import {
   Bell,
   BellOff,
@@ -28,6 +28,7 @@ import { useSala } from "@/hooks/use-sala";
 import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
 import { usePipAutomatico } from "@/hooks/use-pip-automatico";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import {
   diagnosticarCaptura,
   explicarErroDeCaptura,
@@ -153,7 +154,18 @@ export function SalaClient({ codigo }: SalaClientProps) {
   // Só desktop: esconde a lista de participantes pra dar mais largura ao
   // vídeo (vídeo + chat). `destaqueId` é a tela ampliada quando há 2+ (as
   // outras viram uma faixa de miniaturas); `null` = todas do mesmo tamanho.
-  const [cinema, setCinema] = useState(false);
+  //
+  // Abaixo de 1024px o padrão já é sem a lista (com ela o chat e o vídeo
+  // ficavam espremidos: 200 + 280px de colunas fixas num pane de ~800px). A
+  // escolha da pessoa (botão/atalho C) vale por cima disso.
+  const telaLarga = useMediaQuery("(min-width: 1024px)");
+  const [cinemaEscolhido, setCinemaEscolhido] = useState<boolean | null>(null);
+  const cinema = cinemaEscolhido ?? !telaLarga;
+  const cinemaRef = useRef(cinema);
+  useEffect(() => {
+    cinemaRef.current = cinema;
+  }, [cinema]);
+  const alternarCinema = useCallback(() => setCinemaEscolhido(!cinemaRef.current), []);
   const [destaqueId, setDestaqueId] = useState<string | null>(null);
 
   // Contador no título da aba + bipe quando chega mensagem ou alguém começa
@@ -193,7 +205,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
           telaEmFoco("[data-video-tile]")?.dispatchEvent(new Event(EVENTO_PIP));
           break;
         case "c":
-          setCinema((atual) => !atual);
+          alternarCinema();
           break;
         case "/": {
           e.preventDefault();
@@ -210,7 +222,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     }
     document.addEventListener("keydown", aoTeclar);
     return () => document.removeEventListener("keydown", aoTeclar);
-  }, []);
+  }, [alternarCinema]);
 
   // Guarda o nome final (digitado ou "Convidado N" atribuído pelo
   // servidor) pra sobreviver a um refresh desta mesma aba.
@@ -321,17 +333,17 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const botaoAdicionarVideo = (
     <Button size="sm" variant="outline" className="gap-1.5">
       <YoutubeIcon className="size-3.5" />
-      <span className="hidden sm:inline">Adicionar vídeo</span>
+      <span className="max-sm:sr-only">Adicionar vídeo</span>
     </Button>
   );
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <header className="flex items-center gap-2 border-b border-border/40 px-3 py-2.5 sm:gap-3 sm:px-4">
+      <header className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-border/40 px-3 py-2.5 sm:gap-x-3 sm:px-4">
         <span className="hidden font-heading text-sm tracking-wide text-dust-4 sm:inline">
           SINAL
         </span>
-        <span className="font-mono text-xs text-muted-foreground">
+        <span className="font-mono text-xs whitespace-nowrap text-muted-foreground">
           &gt; {codigo}
         </span>
         {trancada && (
@@ -341,138 +353,147 @@ export function SalaClient({ codigo }: SalaClientProps) {
           </span>
         )}
 
-        <div className="flex-1" />
+        {/* Os controles ficam juntos à direita e, sem espaço (tablet, janela
+            estreita), quebram de linha em vez de estourar a largura. */}
+        <div className="ml-auto flex flex-wrap items-center justify-end gap-x-2 gap-y-1 sm:gap-x-3">
 
-        {estouCompartilhando ? (
-          <Button
-            variant="destructive"
-            size="sm"
-            className="gap-1.5"
-            onClick={pararCompartilhamento}
-          >
-            <MonitorX className="size-3.5" />
-            <span className="hidden sm:inline">Parar compartilhamento</span>
-          </Button>
-        ) : podeCompartilhar ? (
-          <div className="flex items-center gap-1">
-            <Button size="sm" variant="outline" className="gap-1.5" onClick={compartilhar}>
-              <MonitorUp className="size-3.5" />
-              <span className="hidden sm:inline">Compartilhar tela</span>
-            </Button>
-            <Tooltip>
-              {/* Botão de verdade (não um `span`): assim o teclado alcança a
-                  dica, e o foco é o que abre o tooltip. */}
-              <TooltipTrigger
-                render={
-                  <button
-                    type="button"
-                    aria-label="Dica sobre áudio ao compartilhar"
-                    className="hidden size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:flex"
-                  />
-                }
-              >
-                <Info className="size-3.5" />
-              </TooltipTrigger>
-              <TooltipContent className="max-w-64">
-                Pra levar o áudio de um vídeo sem pegar a voz do Discord, escolha
-                compartilhar uma aba do navegador ou uma janela (não a tela
-                toda) quando ele perguntar o quê compartilhar. Dá pra ligar e
-                desligar o áudio durante a transmissão.
-              </TooltipContent>
-            </Tooltip>
-          </div>
-        ) : null}
-
-        {estouCompartilhando && temAudio && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="gap-1.5"
-            onClick={alternarAudio}
-            aria-pressed={audioLigado}
-            title={audioLigado ? "Tirar o áudio da transmissão" : "Voltar a enviar o áudio"}
-          >
-            {audioLigado ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
-            <span className="hidden sm:inline">{audioLigado ? "Áudio ligado" : "Sem áudio"}</span>
-          </Button>
-        )}
-
-        {estouCompartilhando && (
-          <StatusTransmissao
-            ler={lerSaudeTransmissao}
-            nomeDe={(id) => participantes.find((p) => p.id === id)?.nome ?? "Participante"}
-            bitrateMbps={bitrateMbps}
-          />
-        )}
-
-        {!fonteVideo && (
-          <AdicionarFonteDialog trigger={botaoAdicionarVideo} aoAdicionar={adicionarFonteVideo} />
-        )}
-
-        <ConfigTransmissaoPopover
-          aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
-          espectadores={participantes.filter((p) => p.id !== euId).length}
-        />
-
-        {podeUsarPip && telas.length > 0 && (
-          <Button
-            size="sm"
-            variant="outline"
-            className="hidden gap-1.5 md:inline-flex"
-            onClick={abrirPip}
-            title="Janela flutuante (P)"
-          >
-            <PictureInPicture2 className="size-3.5" />
-            Janela flutuante
-          </Button>
-        )}
-
-        <div className="hidden items-center gap-0.5 md:flex">
-          <BotaoCabecalho
-            rotulo={cinema ? "Mostrar participantes (C)" : "Modo cinema (C)"}
-            onClick={() => setCinema((c) => !c)}
-          >
-            {cinema ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
-          </BotaoCabecalho>
-          <BotaoCabecalho
-            rotulo={somLigado ? "Silenciar avisos sonoros" : "Ligar avisos sonoros"}
-            onClick={alternarSom}
-          >
-            {somLigado ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
-          </BotaoCabecalho>
-          {notificacaoDisponivel && (
-            <BotaoCabecalho
-              rotulo={
-                notificacaoBloqueada
-                  ? "Notificações bloqueadas — libere nas configurações do site no navegador"
-                  : notificacaoLigada
-                    ? "Desligar notificações do sistema"
-                    : "Ligar notificações do sistema (mensagens e transmissões quando você estiver em outra janela)"
-              }
-              onClick={alternarNotificacao}
+          {estouCompartilhando ? (
+            <Button
+              variant="destructive"
+              size="sm"
+              className="gap-1.5"
+              onClick={pararCompartilhamento}
             >
-              {notificacaoLigada ? <Bell className="size-4" /> : <BellOff className="size-4" />}
-            </BotaoCabecalho>
+              <MonitorX className="size-3.5" />
+              <span className="max-sm:sr-only">Parar compartilhamento</span>
+            </Button>
+          ) : podeCompartilhar ? (
+            <div className="flex items-center gap-1">
+              <Button size="sm" variant="outline" className="gap-1.5" onClick={compartilhar}>
+                <MonitorUp className="size-3.5" />
+                <span className="max-sm:sr-only">Compartilhar tela</span>
+              </Button>
+              <Tooltip>
+                {/* Botão de verdade (não um `span`): assim o teclado alcança a
+                    dica, e o foco é o que abre o tooltip. */}
+                <TooltipTrigger
+                  render={
+                    <button
+                      type="button"
+                      aria-label="Dica sobre áudio ao compartilhar"
+                      className="hidden size-6 items-center justify-center rounded-full text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring sm:flex"
+                    />
+                  }
+                >
+                  <Info className="size-3.5" />
+                </TooltipTrigger>
+                <TooltipContent className="max-w-64">
+                  Pra levar o áudio de um vídeo sem pegar a voz do Discord, escolha
+                  compartilhar uma aba do navegador ou uma janela (não a tela
+                  toda) quando ele perguntar o quê compartilhar. Dá pra ligar e
+                  desligar o áudio durante a transmissão.
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          ) : null}
+
+          {estouCompartilhando && temAudio && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5"
+              onClick={alternarAudio}
+              aria-pressed={audioLigado}
+              title={audioLigado ? "Tirar o áudio da transmissão" : "Voltar a enviar o áudio"}
+            >
+              {audioLigado ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+              <span className="max-sm:sr-only">{audioLigado ? "Áudio ligado" : "Sem áudio"}</span>
+            </Button>
           )}
-          <CopiarLinkButton linkPublico={linkPublico} />
+
+          {estouCompartilhando && (
+            <StatusTransmissao
+              ler={lerSaudeTransmissao}
+              nomeDe={(id) => participantes.find((p) => p.id === id)?.nome ?? "Participante"}
+              bitrateMbps={bitrateMbps}
+            />
+          )}
+
+          {!fonteVideo && (
+            <AdicionarFonteDialog trigger={botaoAdicionarVideo} aoAdicionar={adicionarFonteVideo} />
+          )}
+
+          <ConfigTransmissaoPopover
+            aoMudar={estouCompartilhando ? atualizarQualidadeAoVivo : undefined}
+            espectadores={participantes.filter((p) => p.id !== euId).length}
+          />
+
+          {podeUsarPip && telas.length > 0 && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="hidden gap-1.5 md:inline-flex"
+              onClick={abrirPip}
+              title="Janela flutuante (P)"
+            >
+              <PictureInPicture2 className="size-3.5" />
+              Janela flutuante
+            </Button>
+          )}
+
+          <div className="hidden items-center gap-0.5 md:flex">
+            <BotaoCabecalho
+              rotulo={cinema ? "Mostrar participantes (C)" : "Modo cinema (C)"}
+              onClick={alternarCinema}
+            >
+              {cinema ? <PanelLeftOpen className="size-4" /> : <PanelLeftClose className="size-4" />}
+            </BotaoCabecalho>
+            {/* Som, sino e copiar link só de 1024px pra cima: em tablet o
+                cabeçalho já quebra em duas linhas (o link sai pelo botão
+                "Compartilhar sala"). O modo cinema fica: é a única forma de
+                trazer a lista de participantes de volta. */}
+            <span className="hidden items-center gap-0.5 lg:flex">
+              <BotaoCabecalho
+                rotulo={somLigado ? "Silenciar avisos sonoros" : "Ligar avisos sonoros"}
+                onClick={alternarSom}
+              >
+                {somLigado ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
+              </BotaoCabecalho>
+              {notificacaoDisponivel && (
+                <BotaoCabecalho
+                  rotulo={
+                    notificacaoBloqueada
+                      ? "Notificações bloqueadas — libere nas configurações do site no navegador"
+                      : notificacaoLigada
+                        ? "Desligar notificações do sistema"
+                        : "Ligar notificações do sistema (mensagens e transmissões quando você estiver em outra janela)"
+                  }
+                  onClick={alternarNotificacao}
+                >
+                  {notificacaoLigada ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+                </BotaoCabecalho>
+              )}
+              <CopiarLinkButton linkPublico={linkPublico} />
+            </span>
+          </div>
+
+          <CompartilharSalaDialog
+            codigo={codigo}
+            linkPublico={linkPublico}
+            trancada={trancada}
+            aoAlternarTranca={() => definirTranca(!trancada)}
+          />
+
+          <Button
+            variant="ghost"
+            size="sm"
+            className="gap-1.5"
+            onClick={() => router.push("/")}
+          >
+            <LogOut className="size-3.5" />
+            <span className="max-sm:sr-only">Sair</span>
+          </Button>
         </div>
-
-        <CompartilharSalaDialog
-          codigo={codigo}
-          linkPublico={linkPublico}
-          trancada={trancada}
-          aoAlternarTranca={() => definirTranca(!trancada)}
-        />
-
-        <Button
-          variant="ghost"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => router.push("/")}
-        >
-          <LogOut className="size-3.5" />
-          <span className="hidden sm:inline">Sair</span>
-        </Button>
       </header>
 
       {estouCompartilhando && avisoAudioTelaInteira && audioLigado && (
@@ -525,7 +546,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
       <div
         className={cn(
           "flex min-h-0 flex-1 flex-col gap-2 p-3 md:grid md:gap-4 md:p-4 md:transition-[grid-template-columns] md:duration-300 md:ease-out",
-          cinema ? "md:grid-cols-[0px_1fr_280px]" : "md:grid-cols-[200px_1fr_280px]"
+          cinema
+            ? "md:grid-cols-[0px_minmax(0,1fr)_280px]"
+            : "md:grid-cols-[200px_minmax(0,1fr)_280px]"
         )}
       >
         <main

@@ -215,7 +215,8 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
         <Input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
-          placeholder="Escreva uma mensagem"
+          placeholder="Mensagem"
+          aria-label="Escreva uma mensagem"
           maxLength={500}
           data-chat-input
           enterKeyHint="send"

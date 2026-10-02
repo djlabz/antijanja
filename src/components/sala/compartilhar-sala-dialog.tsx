@@ -62,7 +62,7 @@ export function CompartilharSalaDialog({
         }
       >
         <Link2 className="size-3.5" />
-        <span className="hidden sm:inline">Compartilhar sala</span>
+        <span className="max-sm:sr-only">Compartilhar sala</span>
       </DialogTrigger>
       {aberto && (
         <DialogContent>
