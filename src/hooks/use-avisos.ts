@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { ChatMessage, Participant, ParticipantId } from "@/lib/socket-events";
+import { ultimasPendentes } from "@/lib/historico-chat";
 
 const CHAVE_SOM = "sinal:avisos-som";
 const CHAVE_NOTIFICACAO = "sinal:avisos-notificacao";
@@ -167,12 +168,8 @@ export function useAvisos({ mensagens, totalMensagens, participantes, euId }: Av
   }, [atualizarTitulo]);
 
   useEffect(() => {
-    const pendentes = Math.max(
-      0,
-      Math.min(totalMensagens - mensagensVistasRef.current, mensagens.length)
-    );
+    const novas = ultimasPendentes(mensagens, totalMensagens, mensagensVistasRef.current);
     mensagensVistasRef.current = totalMensagens;
-    const novas = mensagens.slice(mensagens.length - pendentes);
     const deOutros = novas.filter((m) => m.de !== euId && !m.sistema && !m.antiga);
     if (deOutros.length === 0) return;
     const ultima = deOutros[deOutros.length - 1];

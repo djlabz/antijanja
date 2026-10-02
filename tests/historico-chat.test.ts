@@ -4,6 +4,7 @@ import {
   anexarMensagens,
   MAX_MENSAGENS_NO_CLIENTE,
   mesclarHistorico,
+  ultimasPendentes,
 } from "../src/lib/historico-chat";
 import type { ChatMessage } from "../src/lib/socket-events";
 
@@ -62,5 +63,25 @@ describe("mesclarHistorico", () => {
     });
     assert.equal(adicionadas, 1);
     assert.deepEqual(lista.map((m) => m.id), [-1, 1, 2]);
+  });
+});
+
+describe("ultimasPendentes", () => {
+  const lista = [msg(1), msg(2), msg(3), msg(4)];
+
+  it("devolve só o fim da lista que ainda não foi visto", () => {
+    assert.deepEqual(ultimasPendentes(lista, 10, 8).map((m) => m.id), [3, 4]);
+  });
+
+  it("nada pendente quando tudo foi visto", () => {
+    assert.deepEqual(ultimasPendentes(lista, 10, 10), []);
+  });
+
+  it("se a lista foi cortada, não passa do que ela tem", () => {
+    assert.deepEqual(ultimasPendentes(lista, 500, 0).map((m) => m.id), [1, 2, 3, 4]);
+  });
+
+  it("visto maior que o total (aba trocada antes) não quebra", () => {
+    assert.deepEqual(ultimasPendentes(lista, 5, 9), []);
   });
 });

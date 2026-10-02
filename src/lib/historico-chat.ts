@@ -36,3 +36,19 @@ export function mesclarHistorico(
     .map((m) => (euAntigo === null ? { ...m, antiga: true } : m));
   return { lista: anexarMensagens(base, novas), adicionadas: novas.length };
 }
+
+/**
+ * As mensagens que chegaram depois de `vistas` (de um total que só cresce).
+ * A lista é cortada nas últimas `MAX_MENSAGENS_NO_CLIENTE`, então "o que falta
+ * ver" é uma conta de total, e o resultado nunca passa do que a lista ainda
+ * tem. É a regra única do contador de não lidas e dos avisos de segundo plano.
+ */
+export function ultimasPendentes(
+  mensagens: ChatMessage[],
+  total: number,
+  vistas: number
+): ChatMessage[] {
+  const pendentes = Math.max(0, Math.min(total - vistas, mensagens.length));
+  return mensagens.slice(mensagens.length - pendentes);
+}
+

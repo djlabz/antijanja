@@ -29,6 +29,7 @@ import { useWakeLock } from "@/hooks/use-wake-lock";
 import { useAvisos } from "@/hooks/use-avisos";
 import { usePipAutomatico } from "@/hooks/use-pip-automatico";
 import { useMediaQuery } from "@/hooks/use-media-query";
+import { ultimasPendentes } from "@/lib/historico-chat";
 import {
   diagnosticarCaptura,
   explicarErroDeCaptura,
@@ -138,11 +139,9 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const [aba, setAba] = useState<"participantes" | "chat">("chat");
   const [vistas, setVistas] = useState(0);
   const lidas = aba === "chat" ? totalMensagens : vistas;
-  // O histórico é cortado nas últimas 200: conta pelo total e olha só o fim da lista.
-  const pendentes = Math.max(0, Math.min(totalMensagens - lidas, mensagens.length));
-  const naoLidas = mensagens
-    .slice(mensagens.length - pendentes)
-    .filter((m) => m.de !== euId && !m.sistema && !m.antiga).length;
+  const naoLidas = ultimasPendentes(mensagens, totalMensagens, lidas).filter(
+    (m) => m.de !== euId && !m.sistema && !m.antiga
+  ).length;
 
   function trocarAba(nova: "participantes" | "chat") {
     if (nova !== "chat") setVistas(totalMensagens);
