@@ -9,6 +9,7 @@ import {
   type EstatisticasVideo,
   type SaudeSaida,
 } from "@/lib/conexoes-webrtc";
+import { criarReacoesStore, type ReacaoFlutuante, type ReacoesStore } from "@/lib/reacoes-store";
 import { construirConstraintsVideo } from "@/lib/qualidade-transmissao";
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import type {
@@ -25,13 +26,7 @@ export type { EstadoConexao, EstatisticasVideo, SaudeSaida };
 
 type Status = "conectando" | "conectado" | "erro";
 
-export interface ReacaoFlutuante {
-  id: number;
-  emoji: string;
-  nome: string;
-  /** Posição horizontal, em % da largura do vídeo. */
-  x: number;
-}
+export type { ReacaoFlutuante, ReacoesStore };
 
 /**
  * Identifica ESTA aba (não a conexão): igual em toda reconexão, diferente
@@ -96,12 +91,21 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     (ComandoVideo & { de: ParticipantId }) | null
   >(null);
 
-  // Vale pela vida desta aba: o efeito abaixo reabre o socket quando o nome
-  // muda (convidado recebe o nome do servidor) e isso também é "a mesma pessoa".
+  // Vale pela vida desta aba: o efeito abaixo reabre o socket quando muda o
+  // código da sala ou a pessoa fica "pronta", e isso também é "a mesma pessoa".
   const [sessao] = useState(gerarSessao);
 
-  const [reacoes, setReacoes] = useState<ReacaoFlutuante[]>([]);
-  const contadorReacaoRef = useRef(0);
+  // O nome entra no efeito por ref, não por dependência: convidado chega com ""
+  // e o servidor devolve "Convidado N"; se o nome fosse dependência, essa
+  // devolução refaria o efeito e a pessoa entrava, saía e entrava de novo (e o
+  // cleanup parava as trilhas da transmissão, se já houvesse uma).
+  const nomeRef = useRef(nome);
+  useEffect(() => {
+    nomeRef.current = nome;
+  }, [nome]);
+
+  // Fora do estado do React de propósito: ver `reacoes-store.ts`.
+  const [reacoes] = useState(criarReacoesStore);
 
   const socketRef = useRef<SocketSala | null>(null);
   const conexoesRef = useRef<Conexoes | null>(null);
@@ -177,7 +181,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     // Nome que vale numa reentrada: o que o servidor já nos deu (convidado
     // vem com "" e o servidor sorteia "Convidado N") — senão o convidado
     // trocaria de nome a cada reconexão.
-    let nomeEfetivo = nome;
+    let nomeEfetivo = nomeRef.current;
 
     function entrar() {
       // Cada `connect` (o primeiro e todo reconectar) é um socket novo do
@@ -290,11 +294,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     });
 
     socket.on("reacao:recebida", ({ nome: quem, emoji }) => {
-      const id = ++contadorReacaoRef.current;
-      const x = 10 + Math.random() * 80;
-      // Limite de 30 na tela pra uma enxurrada não pesar; cada uma some sozinha.
-      setReacoes((atual) => [...atual.slice(-29), { id, emoji, nome: quem, x }]);
-      setTimeout(() => setReacoes((atual) => atual.filter((r) => r.id !== id)), 2600);
+      reacoes.adicionar(quem, emoji);
     });
 
     socket.on("link:publico", (url) => {
@@ -335,13 +335,14 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       window.removeEventListener("offline", aoFicarOffline);
       window.removeEventListener("online", aoFicarOnline);
       socket.removeAllListeners();
+      reacoes.limpar();
       conexoes.encerrar();
       conexoesRef.current = null;
       streamLocalRef.current?.getTracks().forEach((track) => track.stop());
       socket.disconnect();
       socketRef.current = null;
     };
-  }, [codigo, nome, pronto, sessao, removerStreamRemoto]);
+  }, [codigo, pronto, sessao, reacoes, removerStreamRemoto]);
 
   const enviarReacao = useCallback((emoji: string) => {
     socketRef.current?.emit("reacao:enviar", emoji);

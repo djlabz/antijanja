@@ -1,11 +1,16 @@
-import type { ReacaoFlutuante } from "@/hooks/use-sala";
+"use client";
+
+import { useSyncExternalStore } from "react";
+import type { ReacoesStore } from "@/lib/reacoes-store";
 
 /**
  * Emojis subindo sobre o vídeo, cada um com o nome de quem reagiu embaixo.
  * Só decoração: não recebe clique (`pointer-events-none`) e fica fora da
  * árvore de acessibilidade — a conversa de verdade está no chat.
  */
-export function ReacoesFlutuantes({ reacoes }: { reacoes: ReacaoFlutuante[] }) {
+export function ReacoesFlutuantes({ reacoes: store }: { reacoes: ReacoesStore }) {
+  // Só este componente re-renderiza a cada reação (ver `reacoes-store.ts`).
+  const reacoes = useSyncExternalStore(store.assinar, store.ler, store.ler);
   return (
     <div aria-hidden className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
       {reacoes.map((r) => (

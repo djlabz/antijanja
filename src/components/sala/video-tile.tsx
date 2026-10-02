@@ -16,7 +16,8 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { alternarTelaCheia } from "@/lib/tela-cheia";
-import type { EstadoConexao, EstatisticasVideo, ReacaoFlutuante } from "@/hooks/use-sala";
+import type { EstadoConexao, EstatisticasVideo } from "@/hooks/use-sala";
+import type { ReacoesStore } from "@/lib/reacoes-store";
 import { ReacoesFlutuantes } from "./reacoes-flutuantes";
 import type { ParticipantId } from "@/lib/socket-events";
 import {
@@ -40,7 +41,7 @@ interface VideoTileProps {
   /** Botão de destacar/ver todas (só existe com 2+ telas). */
   destaque?: { ativo: boolean; alternar: () => void };
   /** Reações em andamento — mostradas aqui só em tela cheia (fora dela a sala as mostra). */
-  reacoes?: ReacaoFlutuante[];
+  reacoes?: ReacoesStore;
   className?: string;
 }
 
