@@ -13,6 +13,8 @@ import {
   PanelLeftOpen,
   PictureInPicture2,
   SquarePlay as YoutubeIcon,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -141,7 +143,14 @@ export function SalaClient({ codigo }: SalaClientProps) {
 
   // Contador no título da aba + bipe quando chega mensagem ou alguém começa
   // a transmitir com a aba escondida (ver `useAvisos`).
-  const { somLigado, alternarSom } = useAvisos({ mensagens, participantes, euId });
+  const {
+    somLigado,
+    alternarSom,
+    notificacaoDisponivel,
+    notificacaoLigada,
+    notificacaoBloqueada,
+    alternarNotificacao,
+  } = useAvisos({ mensagens, participantes, euId });
 
   // Atalhos: F tela cheia, M mudo, / chat, C modo cinema. Ignorados
   // enquanto se digita (campo de texto) ou com um diálogo aberto; o slider
@@ -387,8 +396,22 @@ export function SalaClient({ codigo }: SalaClientProps) {
             rotulo={somLigado ? "Silenciar avisos sonoros" : "Ligar avisos sonoros"}
             onClick={alternarSom}
           >
-            {somLigado ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+            {somLigado ? <Volume2 className="size-4" /> : <VolumeX className="size-4" />}
           </BotaoCabecalho>
+          {notificacaoDisponivel && (
+            <BotaoCabecalho
+              rotulo={
+                notificacaoBloqueada
+                  ? "Notificações bloqueadas — libere nas configurações do site no navegador"
+                  : notificacaoLigada
+                    ? "Desligar notificações do sistema"
+                    : "Ligar notificações do sistema (mensagens e transmissões quando você estiver em outra janela)"
+              }
+              onClick={alternarNotificacao}
+            >
+              {notificacaoLigada ? <Bell className="size-4" /> : <BellOff className="size-4" />}
+            </BotaoCabecalho>
+          )}
           <CopiarLinkButton linkPublico={linkPublico} />
         </div>
 
