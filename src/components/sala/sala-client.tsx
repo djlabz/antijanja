@@ -95,6 +95,11 @@ export function SalaClient({ codigo }: SalaClientProps) {
     mensagens,
     estouCompartilhando,
     streamLocal,
+    temAudio,
+    audioLigado,
+    alternarAudio,
+    avisoAudioTelaInteira,
+    dispensarAvisoAudio,
     streamsRemotos,
     estadosConexao,
     linkPublico,
@@ -356,12 +361,27 @@ export function SalaClient({ codigo }: SalaClientProps) {
                 <Info className="size-3.5" />
               </TooltipTrigger>
               <TooltipContent className="max-w-64">
-                Pra levar o áudio de um vídeo sem pegar o áudio do Discord,
-                escolha compartilhar uma aba do navegador (não a tela toda)
-                quando ele perguntar o quê compartilhar.
+                Pra levar o áudio de um vídeo sem pegar a voz do Discord, escolha
+                compartilhar uma aba do navegador ou uma janela (não a tela
+                toda) quando ele perguntar o quê compartilhar. Dá pra ligar e
+                desligar o áudio durante a transmissão.
               </TooltipContent>
             </Tooltip>
           </div>
+        )}
+
+        {estouCompartilhando && temAudio && (
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5"
+            onClick={alternarAudio}
+            aria-pressed={audioLigado}
+            title={audioLigado ? "Tirar o áudio da transmissão" : "Voltar a enviar o áudio"}
+          >
+            {audioLigado ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+            <span className="hidden sm:inline">{audioLigado ? "Áudio ligado" : "Sem áudio"}</span>
+          </Button>
         )}
 
         {estouCompartilhando && (
@@ -441,6 +461,27 @@ export function SalaClient({ codigo }: SalaClientProps) {
           <span className="hidden sm:inline">Sair</span>
         </Button>
       </header>
+
+      {estouCompartilhando && avisoAudioTelaInteira && audioLigado && (
+        <div
+          role="status"
+          className="mx-3 mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-2xl bg-white/[0.05] px-4 py-3 text-sm md:mx-4"
+        >
+          <p className="min-w-0 flex-1 basis-72">
+            Você está compartilhando a <strong className="font-medium">tela inteira com áudio</strong>:
+            vai junto o som de tudo no computador, inclusive a voz do Discord. Quem
+            estiver na chamada e assistindo aqui ouve cada voz duas vezes.
+          </p>
+          <div className="flex gap-2">
+            <Button size="sm" variant="outline" onClick={alternarAudio}>
+              Tirar o áudio
+            </Button>
+            <Button size="sm" variant="ghost" onClick={dispensarAvisoAudio}>
+              Entendi
+            </Button>
+          </div>
+        </div>
+      )}
 
       {reconectando && (
         <div

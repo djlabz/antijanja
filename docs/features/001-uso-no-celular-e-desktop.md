@@ -56,6 +56,12 @@ no `localStorage`) quando chega mensagem ou alguém começa a transmitir.
   vazio quando a pessoa está sozinha.
 - No celular, botão "Compartilhar…" abre o menu nativo do aparelho.
 
+## Áudio da transmissão (PC)
+Botão "Áudio ligado / Sem áudio" no cabeçalho de quem transmite (só aparece se
+a captura tem áudio): corta/religa o som na hora, sem parar a transmissão.
+Compartilhando a TELA INTEIRA com áudio aparece um aviso: vai o som de tudo,
+inclusive a voz do Discord, que duplica pra quem está na chamada.
+
 ## Sala trancável
 Diálogo "Compartilhar sala" → "Trancar": ninguém novo entra (nem com o link);
 quem já está, ou volta de uma queda, continua. Cadeado no cabeçalho. Qualquer

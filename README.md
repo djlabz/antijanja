@@ -131,6 +131,26 @@ Detalhes em `docs/features/001-uso-no-celular-e-desktop.md`.
 - `npm test` — testes do servidor de sinalização (Node + tsx, sem Next).
 - `npm run build` / `npm run start` — build de produção.
 
+## Áudio ao compartilhar e a voz duplicada do Discord
+
+Se você compartilha a **tela inteira** com áudio, vai junto o som de tudo no
+computador — inclusive a voz do Discord. Quem está na chamada e assiste no
+Sinal ouve cada pessoa duas vezes. Formas de evitar, da mais simples à mais
+trabalhosa:
+
+1. **Compartilhe uma aba do navegador** (não a tela): leva só o áudio dela.
+2. **Compartilhe uma janela** (jogo, player): no Chrome 141 ou mais novo o
+   seletor oferece "áudio da janela", só dela.
+3. **Separe as saídas de áudio**: o Chrome captura o dispositivo de saída
+   padrão do Windows. Ponha o Discord pra sair por outro dispositivo (Discord
+   → Configurações → Voz e vídeo → Dispositivo de saída, ou o mixer de volume
+   do Windows por aplicativo) e deixe o que você quer mostrar no padrão.
+   Depende do seu Windows/driver: teste antes.
+4. **Tire o áudio** com o botão "Áudio ligado" do cabeçalho enquanto
+   transmite (todo mundo continua falando pelo Discord).
+
+O Sinal avisa quando você compartilha a tela inteira com áudio.
+
 ## Ligar um servidor TURN (opcional)
 
 Se amigos no 4G ou em redes de empresa veem "Não foi possível conectar", falta

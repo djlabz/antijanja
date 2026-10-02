@@ -275,3 +275,8 @@
 - **Armadilhas**: (1) `document.hidden` fica `true` no navegador embutido quando o painel está oculto — o painel do transmissor e `useAvisos` pausam por isso; nos testes use `Object.defineProperty(document, "hidden", { get: () => false })`. (2) Apagar `.next` some com os tipos globais do Next (`LayoutProps`): `tsc` só passa depois de `npm run build` ou de subir o dev. (3) Testes com `http.close()` ficam pendurados se houver sockets abertos — feche com `io.close()`. (4) `tsx watch` reinicia o servidor ao editar `server.ts`/`src/server`/`src/lib`.
 - **Não verificado**: cartão no WhatsApp, `RENDER_EXTERNAL_URL` no Render, CI no GitHub, notificação real do Windows.
 
+## 2026-10-02 (3) - Voz do Discord duplicada ao compartilhar a tela inteira
+- Pedido do usuário: ao compartilhar a tela toda com áudio, quem está no Discord ouve as vozes duas vezes. **ADR 030**: `windowAudio: "window"`, aviso quando é tela inteira com áudio, botão pra ligar/desligar o áudio da transmissão (`track.enabled`), README com as 4 saídas.
+- O app **não consegue** separar o Discord do áudio do sistema na tela inteira; o que resolve de verdade é compartilhar aba/janela ou separar as saídas de áudio no Windows. Isso último e o "áudio da janela" não foram testados num Windows real.
+- Teste no navegador embutido: `getDisplayMedia` falso com trilha de áudio e `getSettings()` sobrescrito (`displaySurface: "monitor"` ou `"browser"`).
+

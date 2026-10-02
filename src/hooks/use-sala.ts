@@ -74,6 +74,11 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   const [mensagens, setMensagens] = useState<ChatMessage[]>([]);
   const [estouCompartilhando, setEstouCompartilhando] = useState(false);
   const [streamLocal, setStreamLocal] = useState<MediaStream | null>(null);
+  // Áudio da minha transmissão: existe? está ligado? E o aviso de "tela
+  // inteira com áudio do sistema" (duplica as vozes de quem está no Discord).
+  const [temAudio, setTemAudio] = useState(false);
+  const [audioLigado, setAudioLigado] = useState(true);
+  const [avisoAudioTelaInteira, setAvisoAudioTelaInteira] = useState(false);
   const [streamsRemotos, setStreamsRemotos] = useState<
     Record<ParticipantId, MediaStream>
   >({});
@@ -115,6 +120,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     streamLocalRef.current = null;
     setStreamLocal(null);
     setEstouCompartilhando(false);
+    setTemAudio(false);
+    setAvisoAudioTelaInteira(false);
     setParticipantes((atual) =>
       atual.map((p) =>
         p.id === euIdRef.current ? { ...p, compartilhando: false } : p
@@ -358,8 +365,12 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     const { resolucao, fps } = useConfigTransmissaoStore.getState();
 
-    // `selfBrowserSurface` é do Chrome e ainda não está no tipo do TypeScript.
-    const opcoes: DisplayMediaStreamOptions & { selfBrowserSurface?: "include" | "exclude" } = {
+    // `selfBrowserSurface` e `windowAudio` são do Chrome e ainda não estão no
+    // tipo do TypeScript.
+    const opcoes: DisplayMediaStreamOptions & {
+      selfBrowserSurface?: "include" | "exclude";
+      windowAudio?: "exclude" | "system" | "window";
+    } = {
       // Limita resolução e fps ao que foi escolhido em "Qualidade da
       // transmissão" (padrão 1080p/30fps) — sem isso o navegador captura na
       // resolução nativa do monitor sem limite de quadros, o que sobrecarrega
@@ -369,6 +380,9 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       // Tira a aba do próprio Sinal do seletor do Chrome: compartilhá-la gera
       // um espelho infinito (a tela mostrando a tela mostrando a tela...).
       selfBrowserSurface: "exclude",
+      // Ao escolher uma JANELA, oferece o áudio só dela (Chrome 141+) em vez do
+      // áudio do sistema inteiro — que levaria junto a voz do Discord (ADR 030).
+      windowAudio: "window",
       // Sem processamento de voz: isso é áudio de vídeo/jogo, não microfone.
       // Cancelamento de eco e supressão de ruído tratam música/efeitos como
       // "ruído" e cortam pedaços — só atrapalham aqui. Ver docs/decisions.md
@@ -394,6 +408,15 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
       // sinais contraditórios pro encoder.
       trilhaVideo.contentHint = "detail";
     }
+
+    // Tela INTEIRA com áudio = o do sistema todo, Discord incluído. Quem está
+    // na chamada e também assiste o Sinal ouviria cada voz duas vezes.
+    const trilhasAudio = stream.getAudioTracks();
+    setTemAudio(trilhasAudio.length > 0);
+    setAudioLigado(true);
+    setAvisoAudioTelaInteira(
+      trilhasAudio.length > 0 && trilhaVideo?.getSettings().displaySurface === "monitor"
+    );
 
     streamLocalRef.current = stream;
     setStreamLocal(stream);
@@ -436,6 +459,22 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     await conexoesRef.current?.aplicarBitrate(bitrateMbps);
   }, []);
 
+  /**
+   * Liga/desliga o áudio da transmissão na hora, sem parar nem renegociar:
+   * uma trilha com `enabled = false` segue enviando, só que silêncio.
+   */
+  const alternarAudio = useCallback(() => {
+    const trilhas = streamLocalRef.current?.getAudioTracks() ?? [];
+    if (trilhas.length === 0) return;
+    const ligar = !trilhas.every((t) => t.enabled);
+    trilhas.forEach((t) => {
+      t.enabled = ligar;
+    });
+    setAudioLigado(ligar);
+  }, []);
+
+  const dispensarAvisoAudio = useCallback(() => setAvisoAudioTelaInteira(false), []);
+
   const adicionarFonteVideo = useCallback(
     (link: string, qualquerUmControla: boolean) =>
       new Promise<{ ok: true } | { ok: false; erro: string }>((resolve) => {
@@ -469,6 +508,11 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     mensagens,
     estouCompartilhando,
     streamLocal,
+    temAudio,
+    audioLigado,
+    alternarAudio,
+    avisoAudioTelaInteira,
+    dispensarAvisoAudio,
     streamsRemotos,
     estadosConexao,
     linkPublico,

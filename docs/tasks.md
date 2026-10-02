@@ -79,7 +79,13 @@
       limpeza de arquivos sobrando; testes de parser, código e conexões WebRTC
       (49 no total).
 
+- [x] Áudio ao compartilhar: `windowAudio`, aviso de tela inteira com áudio,
+      botão pra ligar/desligar o áudio da transmissão (ADR 030).
+
 ## Próximos passos possíveis (não iniciados)
+- [ ] Confirmar no Windows o "áudio da janela" do Chrome 141 e o truque de
+      separar a saída do Discord (ADR 030); ajustar o README conforme o que
+      funcionar de verdade.
 - [ ] **Ver o CI rodar no GitHub** (workflow criado, nunca executado lá) e o
       cartão de prévia no WhatsApp com uma URL pública de verdade.
 - [ ] Ver a notificação do Windows e o painel do transmissor com 3+
