@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 import { corDoParticipante } from "@/lib/cor-participante";
+import { partirEmLinks } from "@/lib/links-chat";
 import { REACOES, type ChatMessage, type ParticipantId } from "@/lib/socket-events";
 
 interface ChatProps {
@@ -20,6 +21,25 @@ interface ChatProps {
 // lista deve acompanhar mensagens novas; mais acima, a pessoa está lendo o
 // histórico e não deve ser puxada pra baixo.
 const MARGEM_FIM = 80;
+
+/** Texto da mensagem com os links http(s) clicáveis (abrem em outra aba, sem dar acesso à sala). */
+function TextoComLinks({ texto }: { texto: string }) {
+  return partirEmLinks(texto).map((parte, i) =>
+    parte.tipo === "link" ? (
+      <a
+        key={i}
+        href={parte.valor}
+        target="_blank"
+        rel="noopener noreferrer nofollow"
+        className="text-primary underline underline-offset-2 break-all hover:text-primary/80 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        {parte.valor}
+      </a>
+    ) : (
+      parte.valor
+    )
+  );
+}
 
 function formatarHorario(em: number) {
   return new Date(em).toLocaleTimeString("pt-BR", {
@@ -122,11 +142,11 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
           {mensagens.length === 0 && (
             <p className="text-sm text-muted-foreground">Nenhuma mensagem ainda.</p>
           )}
-          {mensagens.map((m, i) => {
+          {mensagens.map((m) => {
             if (m.sistema) {
               return (
                 <p
-                  key={i}
+                  key={m.id}
                   className="animate-in py-0.5 text-center text-xs text-muted-foreground fade-in-0 duration-200"
                 >
                   {m.texto}
@@ -136,7 +156,7 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
             const minha = m.de === euId;
             return (
               <div
-                key={i}
+                key={m.id}
                 className={cn(
                   "flex animate-in flex-col gap-0.5 fade-in-0 slide-in-from-bottom-1 duration-200",
                   minha ? "items-end" : "items-start"
@@ -160,7 +180,7 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir }: 
                       : "rounded-bl-md bg-white/[0.06] text-foreground/90"
                   )}
                 >
-                  {m.texto}
+                  <TextoComLinks texto={m.texto} />
                 </p>
               </div>
             );

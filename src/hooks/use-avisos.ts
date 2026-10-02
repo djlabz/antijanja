@@ -53,6 +53,8 @@ function resumir(texto: string, max = 120) {
 
 interface AvisosProps {
   mensagens: ChatMessage[];
+  /** Quantas já chegaram desde sempre (a lista é cortada, o total não). */
+  totalMensagens: number;
   participantes: Participant[];
   euId: ParticipantId | null;
 }
@@ -66,7 +68,7 @@ interface AvisosProps {
  * direto no `document` (sem estado do React) pra não re-renderizar a sala
  * inteira a cada aviso.
  */
-export function useAvisos({ mensagens, participantes, euId }: AvisosProps) {
+export function useAvisos({ mensagens, totalMensagens, participantes, euId }: AvisosProps) {
   const [somLigado, setSomLigado] = useState(() => {
     try {
       return localStorage.getItem(CHAVE_SOM) !== "0";
@@ -86,7 +88,7 @@ export function useAvisos({ mensagens, participantes, euId }: AvisosProps) {
   const somRef = useRef(somLigado);
   const notificacaoRef = useRef(notificacaoLigada);
   const pendentesRef = useRef(0);
-  const mensagensVistasRef = useRef(mensagens.length);
+  const mensagensVistasRef = useRef(totalMensagens);
   const transmissoresRef = useRef<Set<ParticipantId>>(new Set());
 
   useEffect(() => {
@@ -165,9 +167,13 @@ export function useAvisos({ mensagens, participantes, euId }: AvisosProps) {
   }, [atualizarTitulo]);
 
   useEffect(() => {
-    const novas = mensagens.slice(mensagensVistasRef.current);
-    mensagensVistasRef.current = mensagens.length;
-    const deOutros = novas.filter((m) => m.de !== euId && !m.sistema);
+    const pendentes = Math.max(
+      0,
+      Math.min(totalMensagens - mensagensVistasRef.current, mensagens.length)
+    );
+    mensagensVistasRef.current = totalMensagens;
+    const novas = mensagens.slice(mensagens.length - pendentes);
+    const deOutros = novas.filter((m) => m.de !== euId && !m.sistema && !m.antiga);
     if (deOutros.length === 0) return;
     const ultima = deOutros[deOutros.length - 1];
     avisar(
@@ -175,7 +181,7 @@ export function useAvisos({ mensagens, participantes, euId }: AvisosProps) {
       deOutros.length > 1 ? `${deOutros.length} mensagens novas` : ultima.nome,
       deOutros.length > 1 ? `${ultima.nome}: ${resumir(ultima.texto)}` : resumir(ultima.texto)
     );
-  }, [mensagens, euId, avisar]);
+  }, [mensagens, totalMensagens, euId, avisar]);
 
   useEffect(() => {
     const transmitindo = participantes.filter((p) => p.compartilhando && p.id !== euId);

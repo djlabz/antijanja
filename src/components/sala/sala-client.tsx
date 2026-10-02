@@ -102,6 +102,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     meuNome,
     participantes,
     mensagens,
+    totalMensagens,
     estouCompartilhando,
     streamLocal,
     temAudio,
@@ -135,11 +136,15 @@ export function SalaClient({ codigo }: SalaClientProps) {
   // então dá pra derivar tudo sem efeito.
   const [aba, setAba] = useState<"participantes" | "chat">("chat");
   const [vistas, setVistas] = useState(0);
-  const lidas = aba === "chat" ? mensagens.length : vistas;
-  const naoLidas = mensagens.slice(lidas).filter((m) => m.de !== euId && !m.sistema).length;
+  const lidas = aba === "chat" ? totalMensagens : vistas;
+  // O histórico é cortado nas últimas 200: conta pelo total e olha só o fim da lista.
+  const pendentes = Math.max(0, Math.min(totalMensagens - lidas, mensagens.length));
+  const naoLidas = mensagens
+    .slice(mensagens.length - pendentes)
+    .filter((m) => m.de !== euId && !m.sistema && !m.antiga).length;
 
   function trocarAba(nova: "participantes" | "chat") {
-    if (nova !== "chat") setVistas(mensagens.length);
+    if (nova !== "chat") setVistas(totalMensagens);
     setAba(nova);
   }
 
@@ -178,7 +183,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     notificacaoLigada,
     notificacaoBloqueada,
     alternarNotificacao,
-  } = useAvisos({ mensagens, participantes, euId });
+  } = useAvisos({ mensagens, totalMensagens, participantes, euId });
 
   // Atalhos: F tela cheia, M mudo, / chat, C modo cinema. Ignorados
   // enquanto se digita (campo de texto) ou com um diálogo aberto; o slider

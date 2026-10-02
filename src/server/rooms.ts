@@ -6,7 +6,10 @@
  * Import relativo (não `@/...`): este arquivo roda via `tsx` a partir de
  * `server.ts`, fora do bundler do Next.
  */
-import type { FonteVideo, Participant, ParticipantId } from "../lib/socket-events";
+import type { ChatMessage, FonteVideo, Participant, ParticipantId } from "../lib/socket-events";
+
+/** Quantas mensagens do chat a sala guarda pra quem entra depois (só em memória). */
+export const MAX_HISTORICO = 50;
 
 /**
  * `sessao` identifica a PESSOA (uma aba do navegador), não a conexão: o
@@ -24,6 +27,9 @@ interface Sala {
   fonteVideo: FonteVideo | null;
   /** Trancada: ninguém novo entra (quem já está, ou volta de uma queda, sim). */
   trancada: boolean;
+  /** As últimas mensagens, com a sessão de quem escreveu (pra reconhecer as minhas). */
+  historico: { mensagem: ChatMessage; sessao: string }[];
+  ultimoIdMensagem: number;
 }
 
 const salas = new Map<string, Sala>();
@@ -31,7 +37,14 @@ const salas = new Map<string, Sala>();
 function obterOuCriarSala(codigo: string): Sala {
   let sala = salas.get(codigo);
   if (!sala) {
-    sala = { codigo, participantes: new Map(), fonteVideo: null, trancada: false };
+    sala = {
+      codigo,
+      participantes: new Map(),
+      fonteVideo: null,
+      trancada: false,
+      historico: [],
+      ultimoIdMensagem: 0,
+    };
     salas.set(codigo, sala);
   }
   return sala;
@@ -142,3 +155,32 @@ export function obterFonteVideo(codigo: string): FonteVideo | null {
 export function definirFonteVideo(codigo: string, fonte: FonteVideo | null): void {
   obterOuCriarSala(codigo).fonteVideo = fonte;
 }
+
+/** Numera a mensagem, guarda no histórico da sala (as últimas `MAX_HISTORICO`) e devolve ela pronta pra mandar. */
+export function registrarMensagem(
+  codigo: string,
+  sessao: string,
+  dados: Omit<ChatMessage, "id">
+): ChatMessage {
+  const sala = obterOuCriarSala(codigo);
+  const mensagem: ChatMessage = { id: ++sala.ultimoIdMensagem, ...dados };
+  sala.historico.push({ mensagem, sessao });
+  if (sala.historico.length > MAX_HISTORICO) sala.historico.shift();
+  return mensagem;
+}
+
+/**
+ * O histórico pra quem está entrando agora. As mensagens que a MESMA pessoa
+ * (mesma sessão) escreveu antes de uma queda voltam com `de` = o id novo dela,
+ * senão apareceriam como "de outra pessoa" depois de reconectar.
+ */
+export function historicoPara(
+  codigo: string,
+  meuId: ParticipantId,
+  minhaSessao: string
+): ChatMessage[] {
+  return (salas.get(codigo)?.historico ?? []).map(({ mensagem, sessao }) =>
+    minhaSessao && sessao === minhaSessao ? { ...mensagem, de: meuId } : { ...mensagem }
+  );
+}
+

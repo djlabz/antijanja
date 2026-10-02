@@ -31,10 +31,12 @@ import {
   entrarNaSala,
   estaNaSala,
   gerarNomeConvidado,
+  historicoPara,
   listarParticipantes,
   marcarCompartilhando,
   nomeEmUso,
   obterFonteVideo,
+  registrarMensagem,
   sairDaSala,
   salaTrancada,
   trancarSala,
@@ -77,6 +79,7 @@ const ORIGENS_SINAL: readonly SinalOrigem[] = ["saida", "entrada"];
 interface DadosSocket {
   codigo?: string;
   nome?: string;
+  sessao?: string;
 }
 
 function ehObjeto(valor: unknown): valor is Record<string, unknown> {
@@ -264,6 +267,7 @@ export function registrarSinalizacao(
 
         dados.codigo = codigo;
         dados.nome = nome;
+        dados.sessao = sessao;
         socket.join(codigo);
 
         // Primeiro registra o novo, depois remove o antigo: o contrário
@@ -293,6 +297,7 @@ export function registrarSinalizacao(
           fonteVideo: obterFonteVideo(codigo),
           iceServers: lerIceServersDoAmbiente(),
           trancada: salaTrancada(codigo),
+          mensagens: historicoPara(codigo, socket.id, sessao),
         });
         socket.to(codigo).emit("participante:entrou", {
           id: socket.id,
@@ -321,12 +326,15 @@ export function registrarSinalizacao(
         if (typeof payload.texto !== "string") return;
         const texto = payload.texto.trim().slice(0, MAX_TEXTO_CHAT);
         if (!texto || !podeMandarChat()) return;
-        io.to(codigo).emit("chat:mensagem", {
-          de: socket.id,
-          nome: dados.nome,
-          texto,
-          em: Date.now(),
-        });
+        io.to(codigo).emit(
+          "chat:mensagem",
+          registrarMensagem(codigo, dados.sessao ?? "", {
+            de: socket.id,
+            nome: dados.nome,
+            texto,
+            em: Date.now(),
+          })
+        );
       })
     );
 

@@ -27,12 +27,20 @@ export interface IceServerConfig {
 }
 
 export interface ChatMessage {
+  /**
+   * Identifica a mensagem: o servidor numera as da sala (1, 2, 3…) e o cliente
+   * dá ids negativos aos avisos locais ("Fulano entrou"). Serve de chave na
+   * lista e pra não repetir mensagem que já chegou ao reconectar.
+   */
+  id: number;
   de: ParticipantId;
   nome: string;
   texto: string;
   em: number;
   /** Aviso local ("Fulano entrou") gerado pelo próprio cliente — nunca vem do servidor. */
   sistema?: boolean;
+  /** Veio do histórico da sala (dita antes de eu entrar): não conta como não lida nem apita. */
+  antiga?: boolean;
 }
 
 /**
@@ -117,6 +125,8 @@ export interface EventosCliente {
             iceServers: IceServerConfig[];
             /** A sala está trancada (ninguém novo entra)? */
             trancada: boolean;
+            /** Últimas mensagens do chat da sala (as minhas, de antes de uma queda, já com o meu id novo). */
+            mensagens: ChatMessage[];
           }
         | { ok: false; erro: string; motivo?: MotivoRecusa }
     ) => void

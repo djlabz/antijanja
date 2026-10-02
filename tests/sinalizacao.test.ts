@@ -14,6 +14,7 @@ import { Server } from "socket.io";
 import { io as criarCliente, type Socket } from "socket.io-client";
 import type { EventosCliente, EventosServidor } from "../src/lib/socket-events";
 import { lerIceServersDoAmbiente, registrarSinalizacao } from "../src/server/sinalizacao";
+import { MAX_HISTORICO, registrarMensagem, historicoPara, entrarNaSala, sairDaSala } from "../src/server/rooms";
 
 type Cliente = Socket<EventosServidor, EventosCliente>;
 type RespostaEntrada = Parameters<Parameters<EventosCliente["sala:entrar"]>[1]>[0];
@@ -451,3 +452,70 @@ describe("vídeo do YouTube", () => {
     assert.equal("extra" in comando, false);
   });
 });
+
+describe("histórico do chat", () => {
+  async function falar(cliente: Cliente, texto: string) {
+    const chegou = esperar(cliente, "chat:mensagem");
+    cliente.emit("chat:enviar", { texto });
+    await chegou;
+  }
+
+  it("quem entra depois recebe o que já foi dito, em ordem e com id", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    await entrar(ana, codigo, "Ana");
+    await falar(ana, "oi");
+    await falar(ana, "tudo bem?");
+
+    const beto = await entrar(await conectar(), codigo, "Beto");
+    assert.ok(beto.ok);
+    const mensagens = (beto as { mensagens: { id: number; nome: string; texto: string }[] }).mensagens;
+    assert.deepEqual(mensagens.map((m) => [m.nome, m.texto]), [["Ana", "oi"], ["Ana", "tudo bem?"]]);
+    assert.ok(mensagens[1].id > mensagens[0].id);
+  });
+
+  it("quem volta de uma queda reconhece as próprias mensagens (de = novo id)", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    await entrar(ana, codigo, "Ana", "sessao-ana");
+    await falar(ana, "sou eu");
+    const beto = await conectar();
+    await entrar(beto, codigo, "Beto");
+    await falar(beto, "e eu");
+
+    const volta = await conectar();
+    const resposta = await entrar(volta, codigo, "Ana", "sessao-ana");
+    assert.ok(resposta.ok);
+    const mensagens = (resposta as { mensagens: { de: string; texto: string }[] }).mensagens;
+    assert.equal(mensagens.find((m) => m.texto === "sou eu")?.de, volta.id);
+    assert.notEqual(mensagens.find((m) => m.texto === "e eu")?.de, volta.id);
+  });
+
+  it("sala vazia esquece o histórico", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    await entrar(ana, codigo, "Ana");
+    await falar(ana, "segredo");
+    ana.disconnect();
+    await new Promise((ok) => setTimeout(ok, 100));
+    const nova = await entrar(await conectar(), codigo, "Beto");
+    assert.deepEqual((nova as { mensagens: unknown[] }).mensagens, []);
+  });
+});
+
+describe("rooms: histórico", () => {
+  it(`guarda só as últimas ${MAX_HISTORICO}, com ids crescentes`, () => {
+    const codigo = "historico-unit";
+    entrarNaSala(codigo, "a", "Ana", "s-a");
+    for (let i = 1; i <= MAX_HISTORICO + 5; i++) {
+      registrarMensagem(codigo, "s-a", { de: "a", nome: "Ana", texto: `m${i}`, em: i });
+    }
+    const historico = historicoPara(codigo, "a", "s-a");
+    assert.equal(historico.length, MAX_HISTORICO);
+    assert.equal(historico[0].texto, "m6");
+    assert.equal(historico.at(-1)?.texto, `m${MAX_HISTORICO + 5}`);
+    assert.ok(historico.every((m, i) => i === 0 || m.id > historico[i - 1].id));
+    sairDaSala(codigo, "a");
+  });
+});
+

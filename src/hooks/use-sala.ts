@@ -9,6 +9,7 @@ import {
   type EstatisticasVideo,
   type SaudeSaida,
 } from "@/lib/conexoes-webrtc";
+import { anexarMensagens, mesclarHistorico } from "@/lib/historico-chat";
 import { criarReacoesStore, type ReacaoFlutuante, type ReacoesStore } from "@/lib/reacoes-store";
 import { construirConstraintsVideo } from "@/lib/qualidade-transmissao";
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
@@ -70,7 +71,14 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   const [euId, setEuId] = useState<ParticipantId | null>(null);
   const [meuNome, setMeuNome] = useState<string | null>(null);
   const [participantes, setParticipantes] = useState<Participant[]>([]);
-  const [mensagens, setMensagens] = useState<ChatMessage[]>([]);
+  // `total` só cresce (a lista é cortada nas últimas 200): o contador de não
+  // lidas e os avisos contam por ele, não pelo tamanho da lista.
+  const [chat, setChat] = useState<{ lista: ChatMessage[]; total: number }>({
+    lista: [],
+    total: 0,
+  });
+  const mensagens = chat.lista;
+  const contadorAvisosRef = useRef(0);
   const [estouCompartilhando, setEstouCompartilhando] = useState(false);
   const [streamLocal, setStreamLocal] = useState<MediaStream | null>(null);
   // Áudio da minha transmissão: existe? está ligado? E o aviso de "tela
@@ -200,6 +208,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
           return;
         }
         nomeEfetivo = resposta.nome;
+        const euAntigo = euIdRef.current;
         euIdRef.current = resposta.euId;
         iceServersRef.current = resposta.iceServers ?? [];
         setEuId(resposta.euId);
@@ -217,6 +226,13 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         setParticipantes(todos);
         setFonteVideo(resposta.fonteVideo);
         setTrancada(resposta.trancada ?? false);
+        setChat((atual) => {
+          const { lista, adicionadas } = mesclarHistorico(atual.lista, resposta.mensagens ?? [], {
+            euAntigo,
+            euNovo: resposta.euId,
+          });
+          return { lista, total: atual.total + adicionadas };
+        });
         setStatus("conectado");
 
         // Reconectei no meio de um compartilhamento: anuncia de novo e
@@ -261,10 +277,12 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     window.addEventListener("online", aoFicarOnline);
 
     function avisoDeSistema(texto: string) {
-      setMensagens((atual) => [
-        ...atual,
-        { de: "", nome: "", texto, em: Date.now(), sistema: true },
-      ]);
+      setChat((atual) => ({
+        lista: anexarMensagens(atual.lista, [
+          { id: -++contadorAvisosRef.current, de: "", nome: "", texto, em: Date.now(), sistema: true },
+        ]),
+        total: atual.total + 1,
+      }));
     }
 
     socket.on("participante:entrou", (participante) => {
@@ -290,7 +308,10 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     });
 
     socket.on("chat:mensagem", (mensagem) => {
-      setMensagens((atual) => [...atual, mensagem]);
+      setChat((atual) => ({
+        lista: anexarMensagens(atual.lista, [mensagem]),
+        total: atual.total + 1,
+      }));
     });
 
     socket.on("reacao:recebida", ({ nome: quem, emoji }) => {
@@ -513,6 +534,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     meuNome,
     participantes,
     mensagens,
+    totalMensagens: chat.total,
     estouCompartilhando,
     streamLocal,
     temAudio,
