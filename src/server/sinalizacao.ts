@@ -36,6 +36,8 @@ import {
   nomeEmUso,
   obterFonteVideo,
   sairDaSala,
+  salaTrancada,
+  trancarSala,
 } from "./rooms";
 
 export type ServidorSala = Server<EventosCliente, EventosServidor>;
@@ -139,12 +141,55 @@ function podeControlar(fonte: FonteVideo | null, id: ParticipantId) {
 export interface OpcoesSinalizacao {
   /** Onde vão os avisos de quem entra/sai (padrão: o terminal de quem hospeda). */
   log?: (mensagem: string) => void;
+  /**
+   * Quantas tentativas de entrar em sala cada IP pode fazer por minuto.
+   * Segura quem testa códigos de sala em massa; um grupo de amigos (mesmo com
+   * reconexões) nunca chega perto.
+   */
+  limiteEntradasPorMinuto?: number;
+}
+
+/**
+ * IP de quem conectou, olhando o que o proxy da frente (túnel do Cloudflare,
+ * Render) diz. Só confia no cabeçalho que ELE escreve: o `cf-connecting-ip` ou
+ * o ÚLTIMO item do `x-forwarded-for` (o primeiro vem do cliente e é forjável).
+ */
+function ipDe(socket: { handshake: { headers: Record<string, unknown>; address: string } }) {
+  const { headers, address } = socket.handshake;
+  const cloudflare = headers["cf-connecting-ip"];
+  if (typeof cloudflare === "string" && cloudflare) return cloudflare;
+  const encaminhado = headers["x-forwarded-for"];
+  if (typeof encaminhado === "string" && encaminhado) {
+    return encaminhado.split(",").at(-1)?.trim() || address;
+  }
+  return address;
 }
 
 export function registrarSinalizacao(
   io: ServidorSala,
-  { log = console.log }: OpcoesSinalizacao = {}
+  { log = console.log, limiteEntradasPorMinuto = 40 }: OpcoesSinalizacao = {}
 ): void {
+  // Tentativas recentes de entrar por IP. A limpeza periódica não segura o processo.
+  const tentativas = new Map<string, number[]>();
+  const faxina = setInterval(() => {
+    const limite = Date.now() - 60_000;
+    for (const [ip, marcas] of tentativas) {
+      if (marcas.every((m) => m < limite)) tentativas.delete(ip);
+    }
+  }, 60_000);
+  faxina.unref();
+  function podeTentarEntrar(ip: string) {
+    const agora = Date.now();
+    const marcas = (tentativas.get(ip) ?? []).filter((m) => agora - m < 60_000);
+    if (marcas.length >= limiteEntradasPorMinuto) {
+      tentativas.set(ip, marcas);
+      return false;
+    }
+    marcas.push(agora);
+    tentativas.set(ip, marcas);
+    return true;
+  }
+
   io.on("connection", (socket) => {
     const dados: DadosSocket = {};
     const podeMandarChat = criarLimitador(8, 5000);
@@ -170,6 +215,10 @@ export function registrarSinalizacao(
           responder({ ok: false, erro: "Você já está numa sala." });
           return;
         }
+        if (!podeTentarEntrar(ipDe(socket))) {
+          responder({ ok: false, erro: "Muitas tentativas de entrar. Espere um minuto." });
+          return;
+        }
         const codigo = payload.codigo.trim().toLowerCase();
         if (!codigo) {
           responder({ ok: false, erro: "Informe um código de sala." });
@@ -187,6 +236,15 @@ export function registrarSinalizacao(
         // bloqueou a tela). Ela é substituída, e o nome não conta como
         // "em uso" por ela mesma (ADR 025).
         const antigo = encontrarPorSessao(codigo, sessao);
+
+        // Sala trancada: só entra quem já era dela (voltando de uma queda).
+        if (salaTrancada(codigo) && !antigo) {
+          responder({
+            ok: false,
+            erro: "Esta sala está trancada. Peça pra alguém de dentro destrancar.",
+          });
+          return;
+        }
 
         // Nome vazio = "Continuar como convidado": o servidor atribui
         // "Convidado N" com base em quem já está na sala — só ele sabe isso
@@ -229,12 +287,24 @@ export function registrarSinalizacao(
           participantes: listarParticipantes(codigo).filter((p) => p.id !== socket.id),
           fonteVideo: obterFonteVideo(codigo),
           iceServers: lerIceServersDoAmbiente(),
+          trancada: salaTrancada(codigo),
         });
         socket.to(codigo).emit("participante:entrou", {
           id: socket.id,
           nome,
           compartilhando: false,
         });
+      })
+    );
+
+    socket.on(
+      "sala:trancar",
+      seguro((trancar: unknown) => {
+        const codigo = salaAtual();
+        if (!codigo || typeof trancar !== "boolean") return;
+        trancarSala(codigo, trancar);
+        log(`> [sala ${codigo}] ${dados.nome} ${trancar ? "trancou" : "destrancou"} a sala`);
+        io.to(codigo).emit("sala:trancada", trancar);
       })
     );
 

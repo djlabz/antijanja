@@ -108,10 +108,14 @@ export interface EventosCliente {
             fonteVideo: FonteVideo | null;
             /** Servidores ICE extras (TURN) configurados no servidor; vazio = só o STUN padrão. */
             iceServers: IceServerConfig[];
+            /** A sala está trancada (ninguém novo entra)? */
+            trancada: boolean;
           }
         | { ok: false; erro: string }
     ) => void
   ) => void;
+  /** Tranca/destranca a sala — qualquer pessoa dentro pode (grupo pequeno de amigos). */
+  "sala:trancar": (trancar: boolean) => void;
   "chat:enviar": (payload: { texto: string }) => void;
   "reacao:enviar": (emoji: string) => void;
   "compartilhar:iniciar": () => void;
@@ -129,6 +133,7 @@ export interface EventosCliente {
 export interface EventosServidor {
   "participante:entrou": (participante: Participant) => void;
   "participante:saiu": (id: ParticipantId) => void;
+  "sala:trancada": (trancada: boolean) => void;
   "chat:mensagem": (mensagem: ChatMessage) => void;
   "reacao:recebida": (reacao: ReacaoRecebida) => void;
   "compartilhar:iniciou": (id: ParticipantId) => void;

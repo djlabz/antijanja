@@ -1,11 +1,20 @@
 const ALFABETO = "abcdefghjkmnpqrstuvwxyz23456789"; // sem letras/números ambíguos (0/o, 1/l/i)
 
-/** Gera um código de sala curto e fácil de ditar em voz alta pro grupo. */
-export function gerarCodigoDeSala(tamanho = 5): string {
-  let codigo = "";
-  for (let i = 0; i < tamanho; i++) {
-    codigo += ALFABETO[Math.floor(Math.random() * ALFABETO.length)];
+/**
+ * Gera o código de uma sala nova. 8 caracteres de um alfabeto de 31 dão ~8,5
+ * trilhões de combinações — com o link público do Cloudflare qualquer um pode
+ * TESTAR códigos, e com 5 (28 milhões) e `Math.random` isso não era tão
+ * longe do possível. Usa `crypto` (imprevisível) quando existe (ADR 027).
+ */
+export function gerarCodigoDeSala(tamanho = 8): string {
+  const sorteios = new Uint32Array(tamanho);
+  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
+    crypto.getRandomValues(sorteios);
+  } else {
+    for (let i = 0; i < tamanho; i++) sorteios[i] = Math.floor(Math.random() * 2 ** 32);
   }
+  let codigo = "";
+  for (let i = 0; i < tamanho; i++) codigo += ALFABETO[sorteios[i] % ALFABETO.length];
   return codigo;
 }
 

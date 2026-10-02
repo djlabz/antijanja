@@ -22,6 +22,8 @@ interface Sala {
   codigo: string;
   participantes: Map<ParticipantId, Registro>;
   fonteVideo: FonteVideo | null;
+  /** Trancada: ninguém novo entra (quem já está, ou volta de uma queda, sim). */
+  trancada: boolean;
 }
 
 const salas = new Map<string, Sala>();
@@ -29,7 +31,7 @@ const salas = new Map<string, Sala>();
 function obterOuCriarSala(codigo: string): Sala {
   let sala = salas.get(codigo);
   if (!sala) {
-    sala = { codigo, participantes: new Map(), fonteVideo: null };
+    sala = { codigo, participantes: new Map(), fonteVideo: null, trancada: false };
     salas.set(codigo, sala);
   }
   return sala;
@@ -122,6 +124,15 @@ export function gerarNomeConvidado(codigo: string): string {
     /^convidado( \d+)?$/i.test(p.nome.trim())
   );
   return `Convidado ${existentes.length + 1}`;
+}
+
+export function salaTrancada(codigo: string): boolean {
+  return salas.get(codigo)?.trancada ?? false;
+}
+
+export function trancarSala(codigo: string, trancada: boolean): void {
+  const sala = salas.get(codigo);
+  if (sala) sala.trancada = trancada;
 }
 
 export function obterFonteVideo(codigo: string): FonteVideo | null {

@@ -28,7 +28,10 @@ const sala = () => `teste-${++contador}`;
 
 before(async () => {
   http = createServer();
-  registrarSinalizacao(new Server<EventosCliente, EventosServidor>(http), { log: () => {} });
+  registrarSinalizacao(new Server<EventosCliente, EventosServidor>(http), {
+    log: () => {},
+    limiteEntradasPorMinuto: 10_000, // o limite em si tem teste próprio, com servidor à parte
+  });
   await new Promise<void>((ok) => http.listen(0, "127.0.0.1", ok));
   url = `http://127.0.0.1:${(http.address() as AddressInfo).port}`;
 });
@@ -38,8 +41,8 @@ after(async () => {
   await new Promise((ok) => http.close(ok));
 });
 
-async function conectar(): Promise<Cliente> {
-  const cliente: Cliente = criarCliente(url, { transports: ["websocket"], forceNew: true });
+async function conectar(alvo = url): Promise<Cliente> {
+  const cliente: Cliente = criarCliente(alvo, { transports: ["websocket"], forceNew: true });
   abertos.push(cliente);
   await new Promise<void>((ok, erro) => {
     cliente.once("connect", ok);
@@ -284,6 +287,74 @@ describe("chat e reações", () => {
     const recebidas = coletar(ana, "reacao:recebida");
     ana.emit("reacao:enviar", "💣");
     assert.deepEqual(await recebidas, []);
+  });
+});
+
+describe("sala trancada", () => {
+  it("recusa quem é novo, mas deixa voltar quem já era da sala", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    await entrar(ana, codigo, "Ana", "sessao-ana");
+    ana.emit("sala:trancar", true);
+    await esperar(ana, "sala:trancada");
+
+    const novo = await entrar(await conectar(), codigo, "Beto");
+    assert.equal(novo.ok, false);
+
+    const voltando = await entrar(await conectar(), codigo, "Ana", "sessao-ana");
+    assert.equal(voltando.ok, true);
+    assert.equal((voltando as { trancada: boolean }).trancada, true);
+  });
+
+  it("avisa a sala toda ao trancar e ao destrancar, e volta a aceitar gente", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    const beto = await conectar();
+    await entrar(ana, codigo, "Ana");
+    await entrar(beto, codigo, "Beto");
+
+    const trancou = esperar<boolean>(beto, "sala:trancada");
+    ana.emit("sala:trancar", true);
+    assert.equal(await trancou, true);
+
+    const destrancou = esperar<boolean>(beto, "sala:trancada");
+    ana.emit("sala:trancar", false);
+    assert.equal(await destrancou, false);
+
+    assert.equal((await entrar(await conectar(), codigo, "Caio")).ok, true);
+  });
+
+  it("ignora valor que não é booleano e quem não está na sala", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    await entrar(ana, codigo, "Ana");
+    const avisos = coletar(ana, "sala:trancada");
+    (ana as Socket).emit("sala:trancar", "sim");
+    (await conectar()).emit("sala:trancar", true); // de fora da sala
+    assert.deepEqual(await avisos, []);
+    assert.equal((await entrar(await conectar(), codigo, "Beto")).ok, true);
+  });
+});
+
+describe("limite de tentativas de entrar", () => {
+  it("segura quem testa muitos códigos e deixa o resto passar", async () => {
+    const httpLimitado = createServer();
+    const ioLimitado = new Server<EventosCliente, EventosServidor>(httpLimitado);
+    registrarSinalizacao(ioLimitado, { log: () => {}, limiteEntradasPorMinuto: 3 });
+    await new Promise<void>((ok) => httpLimitado.listen(0, "127.0.0.1", ok));
+    const urlLimitada = `http://127.0.0.1:${(httpLimitado.address() as AddressInfo).port}`;
+    try {
+      const respostas: boolean[] = [];
+      for (let i = 0; i < 5; i++) {
+        const c = await conectar(urlLimitada);
+        respostas.push((await entrar(c, sala(), `Pessoa ${i}`)).ok);
+      }
+      assert.deepEqual(respostas, [true, true, true, false, false]);
+    } finally {
+      // `io.close()` derruba os sockets abertos e fecha o http junto; fechar só
+      // o http ficaria esperando as conexões (e o teste pendurado pra sempre).
+      await new Promise((ok) => void ioLimitado.close(ok));
+    }
   });
 });
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Check, Copy, Link2, Share2 } from "lucide-react";
+import { Check, Copy, Link2, Lock, LockOpen, Share2 } from "lucide-react";
 import { useCompartilharNativo, useCopiar, useLinkSala } from "@/hooks/use-link-sala";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,13 +23,21 @@ interface CompartilharSalaDialogProps {
    * fora — ver docs/decisions.md (ADR 011).
    */
   linkPublico?: string | null;
+  /** A sala está trancada (ninguém novo entra)? */
+  trancada?: boolean;
+  aoAlternarTranca?: () => void;
 }
 
 /**
  * Um único link que já leva direto pra sala — em vez de "entre nesse link e
  * digite esse código", como pedido (ver `useLinkSala`).
  */
-export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSalaDialogProps) {
+export function CompartilharSalaDialog({
+  codigo,
+  linkPublico,
+  trancada = false,
+  aoAlternarTranca,
+}: CompartilharSalaDialogProps) {
   // Controlado explicitamente, E o conteúdo só é renderizado quando aberto
   // (`{aberto && <DialogContent>...}`, mais abaixo) — por causa de um bug
   // real visto neste componente Shadcn/base-ui: ao fechar, o
@@ -89,6 +97,29 @@ export function CompartilharSalaDialog({ codigo, linkPublico }: CompartilharSala
               <Share2 className="size-4" />
               Compartilhar…
             </Button>
+          )}
+
+          {aoAlternarTranca && (
+            <div className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-3">
+              <div className="flex-1 text-xs text-muted-foreground">
+                <p className="text-sm text-foreground">
+                  {trancada ? "Sala trancada" : "Trancar sala"}
+                </p>
+                {trancada
+                  ? "Ninguém novo consegue entrar, nem com o link. Quem já está dentro (ou volta de uma queda) não é afetado."
+                  : "Todo mundo que você queria já entrou? Tranque pra ninguém de fora entrar com o link."}
+              </div>
+              <Button
+                type="button"
+                size="sm"
+                variant={trancada ? "default" : "outline"}
+                className="gap-1.5"
+                onClick={aoAlternarTranca}
+              >
+                {trancada ? <LockOpen className="size-3.5" /> : <Lock className="size-3.5" />}
+                {trancada ? "Destrancar" : "Trancar"}
+              </Button>
+            </div>
           )}
 
           <p className="text-xs text-muted-foreground">

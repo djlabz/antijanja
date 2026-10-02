@@ -39,4 +39,10 @@ describe("gerarCodigoDeSala", () => {
     }
     assert.equal(gerarCodigoDeSala(12).length, 12);
   });
+
+  it("gera 8 caracteres por padrão e não repete (é sorteio de verdade)", () => {
+    assert.equal(gerarCodigoDeSala().length, 8);
+    const vistos = new Set(Array.from({ length: 500 }, () => gerarCodigoDeSala()));
+    assert.equal(vistos.size, 500);
+  });
 });

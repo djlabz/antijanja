@@ -6,6 +6,7 @@ import {
   Bell,
   BellOff,
   Info,
+  Lock,
   LogOut,
   MonitorUp,
   MonitorX,
@@ -97,6 +98,8 @@ export function SalaClient({ codigo }: SalaClientProps) {
     streamsRemotos,
     estadosConexao,
     linkPublico,
+    trancada,
+    definirTranca,
     fonteVideo,
     ultimoComandoVideo,
     adicionarFonteVideo,
@@ -313,6 +316,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
         <span className="font-mono text-xs text-muted-foreground">
           &gt; {codigo}
         </span>
+        {trancada && (
+          <span title="Sala trancada: ninguém novo entra" className="text-muted-foreground">
+            <Lock className="size-3.5" aria-hidden />
+            <span className="sr-only">Sala trancada</span>
+          </span>
+        )}
 
         <div className="flex-1" />
 
@@ -415,7 +424,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
           <CopiarLinkButton linkPublico={linkPublico} />
         </div>
 
-        <CompartilharSalaDialog codigo={codigo} linkPublico={linkPublico} />
+        <CompartilharSalaDialog
+          codigo={codigo}
+          linkPublico={linkPublico}
+          trancada={trancada}
+          aoAlternarTranca={() => definirTranca(!trancada)}
+        />
 
         <Button
           variant="ghost"

@@ -82,6 +82,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   >({});
   const [linkPublico, setLinkPublico] = useState<string | null>(null);
   const [fonteVideo, setFonteVideo] = useState<FonteVideo | null>(null);
+  const [trancada, setTrancada] = useState(false);
   const [ultimoComandoVideo, setUltimoComandoVideo] = useState<
     (ComandoVideo & { de: ParticipantId }) | null
   >(null);
@@ -199,6 +200,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         participantesRef.current = todos;
         setParticipantes(todos);
         setFonteVideo(resposta.fonteVideo);
+        setTrancada(resposta.trancada ?? false);
         setStatus("conectado");
 
         // Reconectei no meio de um compartilhamento: anuncia de novo e
@@ -285,6 +287,10 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     socket.on("link:publico", (url) => {
       setLinkPublico(url);
+    });
+
+    socket.on("sala:trancada", (valor) => {
+      setTrancada(valor);
     });
 
     socket.on("fonte:atualizada", (fonte) => {
@@ -442,6 +448,10 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     []
   );
 
+  const definirTranca = useCallback((trancar: boolean) => {
+    socketRef.current?.emit("sala:trancar", trancar);
+  }, []);
+
   const removerFonteVideo = useCallback(() => {
     socketRef.current?.emit("fonte:remover");
   }, []);
@@ -462,6 +472,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     streamsRemotos,
     estadosConexao,
     linkPublico,
+    trancada,
+    definirTranca,
     fonteVideo,
     ultimoComandoVideo,
     adicionarFonteVideo,
