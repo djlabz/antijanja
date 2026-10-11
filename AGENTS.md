@@ -28,7 +28,7 @@ chama Sinal — era "Tela Junto" antes do redesign visual (ADR 018 em
 ## Estrutura
 
 - `server.ts` → servidor HTTP customizado: Next.js + Socket.IO na mesma porta (ver `docs/decisions.md`, ADR 002).
-- `src/server/rooms.ts` → estado das salas, só em memória (sem banco de dados). Cada participante guarda a `sessao` da aba (nunca sai do servidor).
+- `src/server/rooms.ts` → estado das salas, só em memória (sem banco de dados). Cada participante guarda a `sessao` da aba e o `ip` normalizado (limite por rede, ADR 036) — nenhum dos dois sai do servidor.
 - `src/server/sinalizacao.ts` → todos os handlers Socket.IO (`registrarSinalizacao(io)`). Todo payload entra como `unknown` e é validado; cada handler roda em `seguro()`. Nunca desestruture o payload direto na assinatura (foi o que derrubava o processo, ADR 025).
 - `src/components/sala/status-transmissao.tsx` → pra quem transmite: quantos recebem, quem está com problema, Mbps (lê `saude()` de `conexoes-webrtc`).
 - `src/hooks/use-pip-automatico.ts` → PiP que abre sozinho ao trocar de aba (Media Session).

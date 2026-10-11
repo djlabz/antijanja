@@ -70,7 +70,7 @@ export type SinalTipo = "offer" | "answer" | "candidate";
  * que "tentar de novo" (esperar não destranca uma sala; outro nome resolve
  * "em uso"). Sem `motivo` = erro genérico, só o texto.
  */
-export type MotivoRecusa = "trancada" | "nome-em-uso" | "limite";
+export type MotivoRecusa = "trancada" | "nome-em-uso" | "limite" | "ip-em-uso";
 
 export type SinalOrigem = "saida" | "entrada";
 

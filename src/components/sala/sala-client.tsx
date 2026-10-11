@@ -255,6 +255,13 @@ export function SalaClient({ codigo }: SalaClientProps) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
         <p className="text-destructive">{erro}</p>
+        {motivoErro === "ip-em-uso" && (
+          <p className="max-w-sm text-sm text-muted-foreground">
+            Se foi você mesmo, feche a outra aba da sala e tente de novo. Se divide a internet com
+            outra pessoa que já está aqui (mesma casa ou rede), peça pro anfitrião aumentar o limite
+            ou entre por outra rede.
+          </p>
+        )}
         {motivoErro === "trancada" && (
           <p className="max-w-sm text-sm text-muted-foreground">
             Quando alguém de dentro destrancar, é só tentar de novo.

@@ -13,7 +13,12 @@ import type { AddressInfo } from "node:net";
 import { Server } from "socket.io";
 import { io as criarCliente, type Socket } from "socket.io-client";
 import type { EventosCliente, EventosServidor } from "../src/lib/socket-events";
-import { lerIceServersDoAmbiente, registrarSinalizacao } from "../src/server/sinalizacao";
+import {
+  lerIceServersDoAmbiente,
+  lerLimitePorIpDoAmbiente,
+  normalizarIp,
+  registrarSinalizacao,
+} from "../src/server/sinalizacao";
 import { MAX_HISTORICO, registrarMensagem, historicoPara, entrarNaSala, sairDaSala } from "../src/server/rooms";
 
 type Cliente = Socket<EventosServidor, EventosCliente>;
@@ -42,8 +47,13 @@ after(async () => {
   await new Promise((ok) => http.close(ok));
 });
 
-async function conectar(alvo = url): Promise<Cliente> {
-  const cliente: Cliente = criarCliente(alvo, { transports: ["websocket"], forceNew: true });
+/** `ip` simula o endereço do cliente como um proxy o escreveria (`x-forwarded-for`). */
+async function conectar(alvo = url, ip?: string): Promise<Cliente> {
+  const cliente: Cliente = criarCliente(alvo, {
+    transports: ["websocket"],
+    forceNew: true,
+    ...(ip ? { extraHeaders: { "x-forwarded-for": ip } } : {}),
+  });
   abertos.push(cliente);
   await new Promise<void>((ok, erro) => {
     cliente.once("connect", ok);
@@ -516,6 +526,142 @@ describe("rooms: histórico", () => {
     assert.equal(historico.at(-1)?.texto, `m${MAX_HISTORICO + 5}`);
     assert.ok(historico.every((m, i) => i === 0 || m.id > historico[i - 1].id));
     sairDaSala(codigo, "a");
+  });
+});
+
+describe("limite de participantes por IP", () => {
+  let httpIp: HttpServer;
+  let ioIp: Server<EventosCliente, EventosServidor>;
+  let urlIp: string;
+
+  async function subir(limite: number) {
+    httpIp = createServer();
+    ioIp = new Server<EventosCliente, EventosServidor>(httpIp);
+    registrarSinalizacao(ioIp, {
+      log: () => {},
+      limiteEntradasPorMinuto: 10_000,
+      limiteParticipantesPorIp: limite,
+    });
+    await new Promise<void>((ok) => httpIp.listen(0, "127.0.0.1", ok));
+    urlIp = `http://127.0.0.1:${(httpIp.address() as AddressInfo).port}`;
+  }
+  async function derrubar() {
+    // `io.close()` derruba os sockets abertos e fecha o http junto.
+    await new Promise((ok) => void ioIp.close(ok));
+  }
+
+  it("recusa a segunda pessoa da mesma rede na mesma sala, e deixa outra rede entrar", async () => {
+    await subir(1);
+    try {
+      const codigo = sala();
+      const ana = await entrar(await conectar(urlIp, "203.0.113.7"), codigo, "Ana");
+      assert.ok(ana.ok);
+      const clone = await entrar(await conectar(urlIp, "203.0.113.7"), codigo, "Conta2");
+      assert.equal(clone.ok, false);
+      assert.equal((clone as { motivo?: string }).motivo, "ip-em-uso");
+      const beto = await entrar(await conectar(urlIp, "198.51.100.9"), codigo, "Beto");
+      assert.ok(beto.ok);
+    } finally {
+      await derrubar();
+    }
+  });
+
+  it("quem volta de uma queda (mesma sessão) não conta contra si mesmo", async () => {
+    await subir(1);
+    try {
+      const codigo = sala();
+      await entrar(await conectar(urlIp, "203.0.113.7"), codigo, "Ana", "sessao-ana");
+      const volta = await entrar(await conectar(urlIp, "203.0.113.7"), codigo, "Ana", "sessao-ana");
+      assert.ok(volta.ok);
+    } finally {
+      await derrubar();
+    }
+  });
+
+  it("o limite é por sala: a mesma rede entra em outra sala", async () => {
+    await subir(1);
+    try {
+      await entrar(await conectar(urlIp, "203.0.113.7"), sala(), "Ana");
+      const outra = await entrar(await conectar(urlIp, "203.0.113.7"), sala(), "Ana de novo");
+      assert.ok(outra.ok);
+    } finally {
+      await derrubar();
+    }
+  });
+
+  it("liberta a vaga quando a pessoa sai", async () => {
+    await subir(1);
+    try {
+      const codigo = sala();
+      const primeiro = await conectar(urlIp, "203.0.113.7");
+      await entrar(primeiro, codigo, "Ana");
+      primeiro.disconnect();
+      await new Promise((ok) => setTimeout(ok, 150));
+      const segundo = await entrar(await conectar(urlIp, "203.0.113.7"), codigo, "Ana2");
+      assert.ok(segundo.ok);
+    } finally {
+      await derrubar();
+    }
+  });
+
+  it("limite 2 deixa duas pessoas da mesma rede e recusa a terceira", async () => {
+    await subir(2);
+    try {
+      const codigo = sala();
+      const respostas = [];
+      for (const nome of ["A", "B", "C"]) {
+        respostas.push((await entrar(await conectar(urlIp, "203.0.113.7"), codigo, nome)).ok);
+      }
+      assert.deepEqual(respostas, [true, true, false]);
+    } finally {
+      await derrubar();
+    }
+  });
+
+  it("sem limite (0), a mesma rede entra à vontade", async () => {
+    await subir(0);
+    try {
+      const codigo = sala();
+      for (const nome of ["A", "B", "C"]) {
+        assert.ok((await entrar(await conectar(urlIp, "203.0.113.7"), codigo, nome)).ok);
+      }
+    } finally {
+      await derrubar();
+    }
+  });
+});
+
+describe("normalizarIp", () => {
+  it("IPv4 fica como está; IPv4 embutido em IPv6 vira IPv4", () => {
+    assert.equal(normalizarIp("203.0.113.7"), "203.0.113.7");
+    assert.equal(normalizarIp("::ffff:203.0.113.7"), "203.0.113.7");
+  });
+
+  it("IPv6 vale pela rede (/64): endereços da mesma casa dão o mesmo valor", () => {
+    const a = normalizarIp("2001:db8:abcd:12:aaaa:bbbb:cccc:dddd");
+    const b = normalizarIp("2001:0db8:ABCD:0012:1:2:3:4");
+    assert.equal(a, b);
+    assert.notEqual(a, normalizarIp("2001:db8:abcd:13::1"));
+  });
+
+  it("aceita a forma abreviada (::) e a zona (%eth0)", () => {
+    assert.equal(normalizarIp("2001:db8::1"), normalizarIp("2001:db8:0:0:5::9"));
+    assert.equal(normalizarIp("fe80::1%eth0"), normalizarIp("fe80::2"));
+  });
+
+  it("não quebra com lixo", () => {
+    assert.equal(normalizarIp(""), "");
+    assert.equal(typeof normalizarIp("???"), "string");
+  });
+});
+
+describe("lerLimitePorIpDoAmbiente", () => {
+  it("lê um número inteiro, e qualquer outra coisa vira 0 (sem limite)", () => {
+    assert.equal(lerLimitePorIpDoAmbiente({ MAX_PARTICIPANTES_POR_IP: "1" }), 1);
+    assert.equal(lerLimitePorIpDoAmbiente({ MAX_PARTICIPANTES_POR_IP: " 3 " }), 3);
+    for (const ruim of [undefined, "", "0", "-1", "abc", "1.5"]) {
+      assert.equal(lerLimitePorIpDoAmbiente({ MAX_PARTICIPANTES_POR_IP: ruim }), 0, String(ruim));
+    }
   });
 });
 

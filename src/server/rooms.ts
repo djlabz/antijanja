@@ -19,6 +19,8 @@ export const MAX_HISTORICO = 50;
  */
 interface Registro extends Participant {
   sessao: string;
+  /** Rede de quem entrou, já normalizada (ver `normalizarIp`). Só pro limite por IP; nunca sai do servidor. */
+  ip: string;
 }
 
 interface Sala {
@@ -58,13 +60,15 @@ export function entrarNaSala(
   codigo: string,
   id: ParticipantId,
   nome: string,
-  sessao: string
+  sessao: string,
+  ip = ""
 ): void {
   obterOuCriarSala(codigo).participantes.set(id, {
     id,
     nome,
     compartilhando: false,
     sessao,
+    ip,
   });
 }
 
@@ -182,5 +186,11 @@ export function historicoPara(
   return (salas.get(codigo)?.historico ?? []).map(({ mensagem, sessao }) =>
     minhaSessao && sessao === minhaSessao ? { ...mensagem, de: meuId } : { ...mensagem }
   );
+}
+
+/** Quem está nesta sala vindo desta rede (ids de socket). Sem rede conhecida (""), ninguém. */
+export function idsPorIp(codigo: string, ip: string): ParticipantId[] {
+  if (!ip) return [];
+  return [...(salas.get(codigo)?.participantes.values() ?? [])].filter((p) => p.ip === ip).map((p) => p.id);
 }
 

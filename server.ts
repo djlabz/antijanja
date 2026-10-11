@@ -16,7 +16,7 @@ import { spawn } from "node:child_process";
 import next from "next";
 import { Server } from "socket.io";
 import type { EventosCliente, EventosServidor } from "./src/lib/socket-events";
-import { registrarSinalizacao } from "./src/server/sinalizacao";
+import { lerLimitePorIpDoAmbiente, registrarSinalizacao } from "./src/server/sinalizacao";
 
 const dev = process.env.NODE_ENV !== "production";
 const hostname = process.env.HOST ?? "0.0.0.0";
@@ -111,7 +111,11 @@ app.prepare().then(() => {
     iniciarTunelCloudflare(io, port);
   }
 
-  registrarSinalizacao(io);
+  const limitePorIp = lerLimitePorIpDoAmbiente(process.env);
+  if (limitePorIp > 0) {
+    console.log(`> limite de ${limitePorIp} pessoa(s) por rede (IP) em cada sala`);
+  }
+  registrarSinalizacao(io, { limiteParticipantesPorIp: limitePorIp });
 
   httpServer.listen(port, hostname, () => {
     console.log(

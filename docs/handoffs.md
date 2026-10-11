@@ -308,3 +308,9 @@
 - Testes novos: `sugestao-qualidade` (7) e `salas-recentes` (9); 96 no total. Roteiros novos em `e2e/`: `sugestao-qualidade` (aceitar/dispensar, com `qualityLimitationReason` simulado) e `movimento-reduzido`.
 - A sugestão só foi vista com o sinal simulado; falta ver num upload ruim de verdade.
 
+## 2026-10-11 - Limite por IP contra várias contas na mesma sala (ADR 036)
+- Pedido do usuário: amigos entravam em várias abas com contas diferentes; queria restrição por IP independente do navegador.
+- Feito: `MAX_PARTICIPANTES_POR_IP` (padrão 0 = sem limite; `render.yaml` define 1), IPv6 por /64, recusa com `motivo: "ip-em-uso"`, nova tentativa automática no reload. 7 testes novos de integração + `normalizarIp`/`lerLimitePorIpDoAmbiente`; verificado no navegador com um servidor local com o limite ligado.
+- **Aviso dado ao usuário**: quem divide a internet (mesma casa/rede) conta como uma pessoa; VPN/outro Wi-Fi contornam. Depois do deploy, conferir se a variável chegou ao Render (se o Blueprint não sincronizar, criar no painel).
+- Os 2 commits anteriores (`997c514`, `380253e`, ADR 035) e este seguem sem push.
+

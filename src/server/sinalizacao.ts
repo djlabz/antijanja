@@ -32,6 +32,7 @@ import {
   estaNaSala,
   gerarNomeConvidado,
   historicoPara,
+  idsPorIp,
   listarParticipantes,
   marcarCompartilhando,
   nomeEmUso,
@@ -150,6 +151,13 @@ export interface OpcoesSinalizacao {
    * reconexões) nunca chega perto.
    */
   limiteEntradasPorMinuto?: number;
+  /**
+   * Quantas pessoas da MESMA rede (IP) podem estar juntas numa sala. 0 = sem
+   * limite (o padrão: em casa, ou numa rede de escritório, várias pessoas
+   * legítimas dividem um IP). Quem hospeda liga com `MAX_PARTICIPANTES_POR_IP`
+   * (ADR 036).
+   */
+  limiteParticipantesPorIp?: number;
 }
 
 /**
@@ -168,9 +176,41 @@ function ipDe(socket: { handshake: { headers: Record<string, unknown>; address: 
   return address;
 }
 
+/**
+ * O mesmo "dono" de rede vira o mesmo valor: IPv4 como está, IPv4 embutido em
+ * IPv6 (`::ffff:1.2.3.4`) vira IPv4, e IPv6 vale pelos primeiros 64 bits (a
+ * rede da casa) — senão bastava trocar o final do endereço (o IPv6 gira de
+ * propósito) pra "ser outra pessoa".
+ */
+export function normalizarIp(bruto: string): string {
+  const ip = bruto.trim().toLowerCase().split("%")[0];
+  const mapeado = /^::ffff:(\d{1,3}(?:\.\d{1,3}){3})$/.exec(ip);
+  if (mapeado) return mapeado[1];
+  if (!ip.includes(":")) return ip;
+
+  const [cabeca, cauda] = ip.split("::");
+  const grupos = (texto: string | undefined) => (texto ? texto.split(":") : []);
+  const inicio = grupos(cabeca);
+  const fim = ip.includes("::") ? grupos(cauda) : [];
+  const meio = ip.includes("::") ? Array(Math.max(0, 8 - inicio.length - fim.length)).fill("0") : [];
+  const todos = [...inicio, ...meio, ...fim];
+  if (todos.length !== 8 || todos.some((g) => !/^[0-9a-f]{1,4}$/.test(g))) return ip;
+  return `v6:${todos
+    .slice(0, 4)
+    .map((g) => g.padStart(4, "0"))
+    .join(":")}`;
+}
+
+/** `MAX_PARTICIPANTES_POR_IP`: inteiro positivo liga o limite; qualquer outra coisa = sem limite. */
+export function lerLimitePorIpDoAmbiente(env: Record<string, string | undefined>): number {
+  const bruto = env.MAX_PARTICIPANTES_POR_IP?.trim();
+  if (!bruto || !/^\d+$/.test(bruto)) return 0;
+  return Number(bruto);
+}
+
 export function registrarSinalizacao(
   io: ServidorSala,
-  { log = console.log, limiteEntradasPorMinuto = 40 }: OpcoesSinalizacao = {}
+  { log = console.log, limiteEntradasPorMinuto = 40, limiteParticipantesPorIp = 0 }: OpcoesSinalizacao = {}
 ): void {
   // Tentativas recentes de entrar por IP. A limpeza periódica não segura o processo.
   const tentativas = new Map<string, number[]>();
@@ -254,6 +294,29 @@ export function registrarSinalizacao(
           return;
         }
 
+        // Limite por rede: várias abas/contas do mesmo IP na mesma sala. Quem
+        // volta de uma queda (mesma sessão, `antigo`) não conta contra si
+        // mesmo, e só contam conexões que de fato seguem abertas — um socket que
+        // acabou de fechar (reload da aba) ainda pode estar no registro.
+        const ip = normalizarIp(ipDe(socket));
+        if (limiteParticipantesPorIp > 0) {
+          const jaDaRede = idsPorIp(codigo, ip).filter(
+            (id) => id !== antigo?.id && io.sockets.sockets.get(id)?.connected
+          );
+          if (jaDaRede.length >= limiteParticipantesPorIp) {
+            log(`> [sala ${codigo}] entrada de "${nomeDigitado.trim() || "convidado"}" recusada: a rede já tem gente na sala`);
+            responder({
+              ok: false,
+              erro:
+                limiteParticipantesPorIp === 1
+                  ? "Esta sala aceita só uma pessoa por rede (IP), e alguém da sua rede já está nela."
+                  : `Esta sala aceita só ${limiteParticipantesPorIp} pessoas por rede (IP), e a sua já está no limite.`,
+              motivo: "ip-em-uso",
+            });
+            return;
+          }
+        }
+
         // Nome vazio = "Continuar como convidado": o servidor atribui
         // "Convidado N" com base em quem já está na sala — só ele sabe isso
         // de forma confiável (ver docs/decisions.md, ADR 014).
@@ -272,7 +335,7 @@ export function registrarSinalizacao(
 
         // Primeiro registra o novo, depois remove o antigo: o contrário
         // apagaria a sala (e o vídeo do YouTube) se ele fosse o único.
-        entrarNaSala(codigo, socket.id, nome, sessao);
+        entrarNaSala(codigo, socket.id, nome, sessao, ip);
         if (antigo) {
           const fonte = obterFonteVideo(codigo);
           if (fonte?.adicionadoPor === antigo.id) {

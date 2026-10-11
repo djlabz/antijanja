@@ -96,6 +96,9 @@
 - [x] Sugestão automática de baixar a qualidade, salas recentes na home e
       conferência do movimento reduzido (ADR 035).
 
+- [x] Limite de pessoas por rede (IP) em cada sala, via
+      `MAX_PARTICIPANTES_POR_IP` (ADR 036); ligado em 1 no `render.yaml`.
+
 ## Próximos passos possíveis (não iniciados)
 - [ ] Ver a sala num **iPad/celular de verdade** (cabeçalho em duas linhas,
       alvos de 44px, captura sem suporte) e com **leitor de tela**; medir o

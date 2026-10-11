@@ -197,6 +197,12 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     // trocaria de nome a cada reconexão.
     let nomeEfetivo = nomeRef.current;
 
+    // Recarregar a aba reconecta antes de o servidor notar que o socket antigo
+    // fechou: por um instante a própria pessoa parece "outra da mesma rede".
+    // Tenta de novo duas vezes antes de mostrar o erro do limite por IP.
+    let tentativasPorIp = 0;
+    let timerNovaTentativa: ReturnType<typeof setTimeout> | undefined;
+
     function entrar() {
       // Cada `connect` (o primeiro e todo reconectar) é um socket novo do
       // ponto de vista do servidor: ele já nos removeu da sala e tratou como
@@ -208,6 +214,11 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
       socket.emit("sala:entrar", { codigo, nome: nomeEfetivo, sessao }, (resposta) => {
         if (!resposta.ok) {
+          if (resposta.motivo === "ip-em-uso" && tentativasPorIp < 2) {
+            tentativasPorIp++;
+            timerNovaTentativa = setTimeout(entrar, 1500);
+            return;
+          }
           setErro(resposta.erro);
           setMotivoErro(resposta.motivo ?? null);
           setStatus("erro");
@@ -364,6 +375,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     });
 
     return () => {
+      clearTimeout(timerNovaTentativa);
       document.removeEventListener("visibilitychange", aoVoltarAoApp);
       window.removeEventListener("offline", aoFicarOffline);
       window.removeEventListener("online", aoFicarOnline);

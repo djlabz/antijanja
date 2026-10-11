@@ -8,6 +8,12 @@ services:
     envVars:
       - key: NODE_ENV
         value: production
+      # Uma pessoa por rede (IP) em cada sala: impede entrar com várias contas
+      # em várias abas/navegadores. Tire a linha (ou use "0") pra liberar.
+      # Atrás de uma mesma internet (casa, escritório, 4G) só um entra: ver
+      # README e docs/decisions.md (ADR 036).
+      - key: MAX_PARTICIPANTES_POR_IP
+        value: "1"
       # Sem TUNNEL aqui de propósito: o Render já dá uma URL pública própria
       # (https://sinal-xxxx.onrender.com), então o túnel do Cloudflare
       # (ADR 011) não é necessário — ligar TUNNEL=cloudflare faria o

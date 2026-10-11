@@ -151,6 +151,32 @@ trabalhosa:
 
 O Sinal avisa quando você compartilha a tela inteira com áudio.
 
+## Limitar uma pessoa por rede (IP)
+
+Pra impedir que alguém entre na mesma sala com várias contas (várias abas ou
+navegadores), defina `MAX_PARTICIPANTES_POR_IP`:
+
+```
+MAX_PARTICIPANTES_POR_IP=1
+```
+
+Cada sala aceita no máximo esse número de pessoas vindas do mesmo IP. Sem a
+variável (ou com `0`) não há limite — é o padrão local. No Render ela já vem
+ligada em `1` no `render.yaml`.
+
+Vale saber antes de ligar:
+
+- **Quem divide a internet conta como a mesma pessoa**: duas pessoas na mesma
+  casa, no mesmo escritório ou na mesma rede de celular (4G/5G) têm o mesmo IP,
+  e só a primeira entra. Se isso for o caso do seu grupo, use `2` ou mais, ou
+  desligue.
+- **IPv6 conta pela rede inteira da casa** (os primeiros 64 bits), senão bastava
+  o endereço mudar pra "virar outra pessoa".
+- **Não é à prova de tudo**: quem usa VPN, outro Wi-Fi ou os dados do celular
+  entra como outra rede. É um desestímulo, não um bloqueio definitivo.
+- Recarregar a aba ou voltar de uma queda de internet **não** é bloqueado.
+- É por sala: a mesma rede pode estar em salas diferentes ao mesmo tempo.
+
 ## Ligar um servidor TURN (opcional)
 
 Se amigos no 4G ou em redes de empresa veem "Não foi possível conectar", falta
