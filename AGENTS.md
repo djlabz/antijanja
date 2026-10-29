@@ -44,7 +44,8 @@ chama Sinal — era "Tela Junto" antes do redesign visual (ADR 018 em
 - `src/lib/qualidade-transmissao.ts` → presets de resolução/fps e as funções que aplicam isso na captura (`getDisplayMedia`) e no bitrate de cada conexão de saída (`RTCRtpSender.setParameters`).
 - `src/components/sala/escolher-nome-sala.tsx` → tela de identificação (nome ou convidado) mostrada dentro da sala quando ainda não tem nome (ADR 014).
 - `src/lib/youtube.ts` → parsing de URL do YouTube (vídeo/playlist), sem `window`/DOM — importado tanto do cliente quanto de `server.ts`, igual `socket-events.ts`.
-- `src/components/sala/youtube-player.tsx` + `adicionar-fonte-dialog.tsx` → vídeo do YouTube sincronizado pra sala inteira (ADR 015).
+- `src/components/sala/youtube-player.tsx` + `adicionar-fonte-dialog.tsx` → vídeo do YouTube sincronizado pra sala inteira (ADR 015). O player é criado uma vez e troca de vídeo com `loadVideoById` (nunca remonte por `key`: perde tela cheia e sincronia).
+- `src/lib/fila-video.ts` (regras puras da fila, importado pelo servidor e pelo Next) + `fila-video.tsx` (painel) + `youtube-info.ts`/`use-info-youtube.ts` (título e miniatura pelo oEmbed do YouTube, cache em memória) → fila do player (ADR 037). A fila mora no servidor (`FonteVideo.atual/proximos`); toda mudança sai pelo `fonte:atualizada`, e `fonte:acao` cita sempre o `id` do item.
 - `src/hooks/use-wake-lock.ts`, `use-avisos.ts`, `use-link-sala.ts` → tela acesa, aviso no título/bipe, link da sala + copiar + compartilhar nativo.
 - `src/lib/tela-cheia.ts` → entrar/sair da tela cheia (botão e atalho `F` usam a mesma função).
 - `src/components/sala/video-tile.tsx` → vídeo com volume, estatísticas, PiP, destaque, chat sobreposto e controles que somem em tela cheia. Recebe atalhos como eventos DOM `sinal:*` (a sala não mexe no estado dele).

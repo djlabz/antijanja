@@ -14,6 +14,7 @@ import { criarReacoesStore, type ReacaoFlutuante, type ReacoesStore } from "@/li
 import { construirConstraintsVideo } from "@/lib/qualidade-transmissao";
 import { useConfigTransmissaoStore } from "@/store/config-transmissao-store";
 import type {
+  AcaoFila,
   ChatMessage,
   ComandoVideo,
   FonteVideo,
@@ -21,6 +22,7 @@ import type {
   MotivoRecusa,
   Participant,
   ParticipantId,
+  RespostaFonte,
 } from "@/lib/socket-events";
 
 export type { EstadoConexao, EstatisticasVideo, SaudeSaida };
@@ -125,6 +127,8 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
   // novo `sala:entrar`. Sem esta guarda a mensagem digitada nesse intervalo
   // sumia sem aviso.
   const naSalaRef = useRef(false);
+  /** Qual item do player está tocando, pra descartar o último comando quando o vídeo muda. */
+  const idItemAtualRef = useRef<number | null>(null);
   const participantesRef = useRef<Participant[]>([]);
   const iceServersRef = useRef<IceServerConfig[]>([]);
 
@@ -243,6 +247,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
         participantesRef.current = todos;
         setParticipantes(todos);
         setFonteVideo(resposta.fonteVideo);
+        idItemAtualRef.current = resposta.fonteVideo?.atual.id ?? null;
         setTrancada(resposta.trancada ?? false);
         setChat((atual) => {
           const { lista, adicionadas } = mesclarHistorico(atual.lista, resposta.mensagens ?? [], {
@@ -351,6 +356,9 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
     socket.on("fonte:atualizada", (fonte) => {
       setFonteVideo(fonte);
+      // Um "tocar aos 3:10" do vídeo anterior não vale pro que acabou de entrar.
+      if ((fonte?.atual.id ?? null) !== idItemAtualRef.current) setUltimoComandoVideo(null);
+      idItemAtualRef.current = fonte?.atual.id ?? null;
     });
 
     socket.on("fonte:comando", (comando) => {
@@ -528,7 +536,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
   const adicionarFonteVideo = useCallback(
     (link: string, qualquerUmControla: boolean) =>
-      new Promise<{ ok: true } | { ok: false; erro: string }>((resolve) => {
+      new Promise<RespostaFonte>((resolve) => {
         if (!socketRef.current) {
           resolve({ ok: false, erro: "Sem conexão com o servidor." });
           return;
@@ -548,6 +556,10 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
 
   const enviarComandoVideo = useCallback((comando: ComandoVideo) => {
     socketRef.current?.emit("fonte:comando", comando);
+  }, []);
+
+  const acaoNaFila = useCallback((tipo: AcaoFila, itemId: number) => {
+    socketRef.current?.emit("fonte:acao", { tipo, itemId });
   }, []);
 
   return {
@@ -575,6 +587,7 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     ultimoComandoVideo,
     adicionarFonteVideo,
     removerFonteVideo,
+    acaoNaFila,
     enviarComandoVideo,
     enviarMensagem,
     lerEstatisticasEntrada,

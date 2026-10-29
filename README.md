@@ -107,6 +107,10 @@ Não precisa configurar nenhuma variável de ambiente a mais — não ligue
 - "Adicionar vídeo" cola um link do YouTube (vídeo ou playlist) e todo
   mundo na sala assiste junto, sincronizado — como um controle remoto
   compartilhado. Só YouTube por enquanto.
+- Com um vídeo no ar, dá pra montar uma **fila**: "Adicionar à fila" aceita
+  um link atrás do outro. Quando um vídeo acaba (ou não dá pra tocar) o
+  próximo começa sozinho; quem controla também pula, toca um da fila na hora,
+  põe um como o próximo ou tira da fila. Quem não controla vê a fila.
 
 Detalhes técnicos e por quê de cada escolha: `docs/decisions.md`.
 Escopo da funcionalidade: `docs/features/000-sala-compartilhamento-tela.md`.

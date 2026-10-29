@@ -12,7 +12,8 @@ import { createServer, type Server as HttpServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { Server } from "socket.io";
 import { io as criarCliente, type Socket } from "socket.io-client";
-import type { EventosCliente, EventosServidor } from "../src/lib/socket-events";
+import type { EventosCliente, EventosServidor, FonteVideo } from "../src/lib/socket-events";
+import { MAX_FILA } from "../src/lib/fila-video";
 import {
   lerIceServersDoAmbiente,
   lerLimitePorIpDoAmbiente,
@@ -103,7 +104,9 @@ describe("payload malformado", () => {
     cru.emit("chat:enviar", { texto: 5 });
     cru.emit("webrtc:sinal", "oi");
     cru.emit("fonte:adicionar", 7);
-    cru.emit("fonte:comando", { tipo: "carregar", youtubeId: { a: 1 } });
+    cru.emit("fonte:comando", { tipo: "tocar", emSegundos: { a: 1 } });
+    cru.emit("fonte:acao", "oi");
+    cru.emit("fonte:acao", { tipo: { a: 1 }, itemId: "1" });
     cru.emit("evento:que-nao-existe", { qualquer: "coisa" });
 
     // Se algum handler tivesse estourado, o processo de teste já teria caído;
@@ -224,7 +227,7 @@ describe("reconexão (a mesma pessoa voltando)", () => {
     );
     const resposta = await entrar(await conectar(), codigo, "Ana", "s1");
     assert.ok(resposta.ok);
-    assert.equal(resposta.fonteVideo?.youtubeId, "dQw4w9WgXcQ");
+    assert.equal(resposta.fonteVideo?.atual.youtubeId, "dQw4w9WgXcQ");
     assert.equal(resposta.fonteVideo?.adicionadoPor, (resposta as { euId: string }).euId);
   });
 });
@@ -441,14 +444,11 @@ describe("vídeo do YouTube", () => {
     assert.equal(await removida, null);
   });
 
-  it("recusa comando com id de vídeo malformado", async () => {
+  it("recusa comando malformado ou de um tipo que não existe mais", async () => {
     const { dona, outro } = await comVideo();
     const comandos = coletar(outro, "fonte:comando");
-    (dona as Socket).emit("fonte:comando", {
-      tipo: "carregar",
-      youtubeId: "<script>",
-      ehPlaylist: false,
-    });
+    (dona as Socket).emit("fonte:comando", { tipo: "tocar", emSegundos: "<script>" });
+    (dona as Socket).emit("fonte:comando", { tipo: "carregar", youtubeId: "abc", ehPlaylist: false });
     assert.deepEqual(await comandos, []);
   });
 
@@ -460,6 +460,206 @@ describe("vídeo do YouTube", () => {
     assert.equal(comando.tipo, "tocar");
     assert.equal(comando.emSegundos, 12);
     assert.equal("extra" in comando, false);
+  });
+});
+
+describe("fila do vídeo", () => {
+  type Resposta = { ok: true; naFila?: number } | { ok: false; erro: string };
+  const link = (id: string) => `https://youtu.be/${id}`;
+
+  function adicionar(cliente: Cliente, id: string, qualquerUmControla = false) {
+    return new Promise<Resposta>((ok) =>
+      cliente.emit("fonte:adicionar", { link: link(id), qualquerUmControla }, ok)
+    );
+  }
+
+  /** A fonte que a sala vê depois de `mexer()`, olhando pelo `observador`. */
+  async function fonteDepois(observador: Cliente, mexer: () => void) {
+    const chegou = esperar<FonteVideo | null>(observador, "fonte:atualizada");
+    mexer();
+    return chegou;
+  }
+
+  /**
+   * O ack de quem adicionou chega ANTES do aviso aos outros: sem esperar um
+   * pouco, o próximo `esperar`/`coletar` do observador pegaria um aviso velho
+   * da montagem do teste.
+   */
+  const assentar = () => new Promise((ok) => setTimeout(ok, 80));
+
+  /** Dona tocando "primeiro", com "segundo" e "terceiro" na fila; `outro` só assiste. */
+  async function comFila(qualquerUmControla = false) {
+    const codigo = sala();
+    const dona = await conectar();
+    const outro = await conectar();
+    await entrar(dona, codigo, "Dona");
+    await entrar(outro, codigo, "Outro");
+    await adicionar(dona, "primeiro11", qualquerUmControla);
+    await adicionar(dona, "segundo222");
+    await adicionar(dona, "terceiro33");
+    await assentar();
+    return { codigo, dona, outro }; // ids da sala: 1 (tocando), 2 e 3 (na fila)
+  }
+
+  it("o primeiro link abre o player; os seguintes entram na fila, com a posição", async () => {
+    const codigo = sala();
+    const dona = await conectar();
+    await entrar(dona, codigo, "Dona");
+    assert.deepEqual(await adicionar(dona, "primeiro11"), { ok: true });
+    assert.deepEqual(await adicionar(dona, "segundo222"), { ok: true, naFila: 1 });
+    assert.deepEqual(await adicionar(dona, "terceiro33"), { ok: true, naFila: 2 });
+
+    const entrou = await entrar(await conectar(), codigo, "Chegou");
+    assert.ok(entrou.ok);
+    assert.equal(entrou.fonteVideo?.atual.youtubeId, "primeiro11");
+    assert.deepEqual(
+      entrou.fonteVideo?.proximos.map((i) => [i.youtubeId, i.por]),
+      [
+        ["segundo222", "Dona"],
+        ["terceiro33", "Dona"],
+      ]
+    );
+  });
+
+  it("todo item ganha um id próprio, mesmo o mesmo link duas vezes", async () => {
+    const codigo = sala();
+    const dona = await conectar();
+    const outro = await conectar();
+    await entrar(dona, codigo, "Dona");
+    await entrar(outro, codigo, "Outro");
+    await adicionar(dona, "mesmo11111");
+    await assentar();
+    const fonte = await fonteDepois(outro, () => void adicionar(dona, "mesmo11111"));
+    assert.ok(fonte);
+    assert.notEqual(fonte.atual.id, fonte.proximos[0].id);
+  });
+
+  it("quem não controla não adiciona na fila nem mexe nela", async () => {
+    const { dona, outro } = await comFila();
+    const resposta = await adicionar(outro, "intruso111");
+    assert.equal(resposta.ok, false);
+
+    const mudancas = coletar(dona, "fonte:atualizada");
+    (outro as Socket).emit("fonte:acao", { tipo: "tocar", itemId: 3 });
+    (outro as Socket).emit("fonte:acao", { tipo: "remover", itemId: 3 });
+    assert.deepEqual(await mudancas, []);
+  });
+
+  it("com 'qualquer um controla', os outros também põem e tiram da fila", async () => {
+    const codigo = sala();
+    const dona = await conectar();
+    const outro = await conectar();
+    await entrar(dona, codigo, "Dona");
+    await entrar(outro, codigo, "Outro");
+    await adicionar(dona, "primeiro11", true);
+
+    assert.deepEqual(await adicionar(outro, "segundo222"), { ok: true, naFila: 1 });
+    await assentar();
+    const fonte = await fonteDepois(dona, () =>
+      outro.emit("fonte:acao", { tipo: "remover", itemId: 2 })
+    );
+    assert.deepEqual(fonte?.proximos, []);
+  });
+
+  it("avançar: o próximo vira o atual pra sala toda", async () => {
+    const codigo = sala();
+    const dona = await conectar();
+    const outro = await conectar();
+    await entrar(dona, codigo, "Dona");
+    await entrar(outro, codigo, "Outro");
+    await adicionar(dona, "primeiro11");
+    await adicionar(dona, "segundo222");
+    await assentar();
+
+    const fonte = await fonteDepois(outro, () =>
+      dona.emit("fonte:acao", { tipo: "avancar", itemId: 1 })
+    );
+    assert.equal(fonte?.atual.youtubeId, "segundo222");
+    assert.deepEqual(fonte?.proximos, []);
+  });
+
+  it("dois 'avançar' do mesmo vídeo (dois players chegando ao fim) pulam um só", async () => {
+    const codigo = sala();
+    const dona = await conectar();
+    const outro = await conectar();
+    await entrar(dona, codigo, "Dona");
+    await entrar(outro, codigo, "Outro");
+    await adicionar(dona, "primeiro11", true);
+    await adicionar(dona, "segundo222");
+    await adicionar(dona, "terceiro33");
+    await assentar();
+
+    const mudancas = coletar<FonteVideo>(dona, "fonte:atualizada", 400);
+    dona.emit("fonte:acao", { tipo: "avancar", itemId: 1 });
+    outro.emit("fonte:acao", { tipo: "avancar", itemId: 1 });
+    const recebidas = await mudancas;
+    assert.equal(recebidas.length, 1);
+    assert.equal(recebidas[0].atual.youtubeId, "segundo222");
+    assert.deepEqual(recebidas[0].proximos.map((i) => i.youtubeId), ["terceiro33"]);
+  });
+
+  it("tocar agora, priorizar e remover agem sobre o item citado", async () => {
+    const { dona, outro } = await comFila();
+
+    let fonte = await fonteDepois(outro, () => dona.emit("fonte:acao", { tipo: "priorizar", itemId: 3 }));
+    assert.deepEqual(fonte?.proximos.map((i) => i.id), [3, 2]);
+
+    fonte = await fonteDepois(outro, () => dona.emit("fonte:acao", { tipo: "remover", itemId: 2 }));
+    assert.deepEqual(fonte?.proximos.map((i) => i.id), [3]);
+
+    fonte = await fonteDepois(outro, () => dona.emit("fonte:acao", { tipo: "tocar", itemId: 3 }));
+    assert.equal(fonte?.atual.id, 3);
+    assert.deepEqual(fonte?.proximos, []);
+  });
+
+  it("ação sobre item que não existe (mais) não avisa ninguém", async () => {
+    const { dona, outro } = await comFila();
+    const mudancas = coletar(outro, "fonte:atualizada");
+    dona.emit("fonte:acao", { tipo: "remover", itemId: 999 });
+    dona.emit("fonte:acao", { tipo: "tocar", itemId: 999 });
+    (dona as Socket).emit("fonte:acao", { tipo: "apagar-tudo", itemId: 2 });
+    assert.deepEqual(await mudancas, []);
+  });
+
+  it("a fila tem limite", async () => {
+    const codigo = sala();
+    // Cada socket tem seu limite de ritmo (20 pedidos em 5s): três pessoas
+    // enchem a fila sem esbarrar nele.
+    const pessoas = await Promise.all([conectar(), conectar(), conectar()]);
+    for (const [i, p] of pessoas.entries()) await entrar(p, codigo, `Pessoa${i}`);
+    await adicionar(pessoas[0], "primeiro11", true);
+    for (let i = 0; i < MAX_FILA; i++) {
+      const resposta = await adicionar(pessoas[i % 3], `fila${String(i).padStart(6, "0")}`);
+      assert.equal(resposta.ok, true, `item ${i}`);
+    }
+    const cheia = await adicionar(pessoas[1], "estourou111");
+    assert.equal(cheia.ok, false);
+    assert.match((cheia as { erro: string }).erro, /cheia/);
+  });
+
+  it("o dono que volta de uma queda continua controlando a fila", async () => {
+    const codigo = sala();
+    const antiga = await conectar();
+    await entrar(antiga, codigo, "Dona", "s-dona");
+    await adicionar(antiga, "primeiro11");
+    await adicionar(antiga, "segundo222");
+
+    const nova = await conectar();
+    const resposta = await entrar(nova, codigo, "Dona", "s-dona");
+    assert.ok(resposta.ok);
+    assert.equal(resposta.fonteVideo?.proximos.length, 1);
+
+    const fonte = await fonteDepois(nova, () => nova.emit("fonte:acao", { tipo: "avancar", itemId: 1 }));
+    assert.equal(fonte?.atual.youtubeId, "segundo222");
+  });
+
+  it("fechar o player descarta a fila", async () => {
+    const { dona, outro } = await comFila();
+    const removida = esperar(outro, "fonte:atualizada");
+    dona.emit("fonte:remover");
+    assert.equal(await removida, null);
+    const entrou = await entrar(await conectar(), "teste-sem-sala", "X");
+    assert.ok(entrou.ok);
   });
 });
 

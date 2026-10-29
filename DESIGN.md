@@ -283,6 +283,19 @@ o canto arredondado cairia num quadro preto e o vídeo continuaria reto.
 - **Controles** (tela cheia, destacar, volume, estatísticas): ícone puro
   com `drop-shadow`, aparecem só no hover.
 
+### Fila de Vídeos (painel acima do chat, aba "Fila" no celular)
+- **Superfície:** a mesma Soft-Surface dos outros painéis (`white/3,5%`,
+  `rounded-3xl`); só existe com um player na sala.
+- **Profundidade = estado:** "Tocando agora" é o plano da frente (título em
+  marfim, peso médio, ponto âmbar pulsante — o mesmo "ao vivo" do vídeo); "A
+  seguir" fica em `foreground/80`. Rótulos de bloco em sans pequena e
+  `muted-foreground` (não bitmap: é frase, não rótulo de seção).
+- **Linha:** miniatura 64×36 (`rounded-lg`), título em até 2 linhas, e embaixo
+  `autor · por Fulano`. Ações (tocar agora, tocar em seguida, tirar) só pra quem
+  controla: no computador aparecem sobre o fim da linha no hover/foco; no toque
+  ficam sempre visíveis, em alvos de 44px.
+- **Sem controle:** nenhum botão, só a frase "Só Fulana controla o vídeo e a fila".
+
 ### Fila de Participantes (era "Lista de Participantes")
 - **Ordenação:** quem compartilha primeiro (plano da frente); resto depois,
   com o nome em `foreground/70` e o avatar a 85% (ver Legible-Dim Rule).

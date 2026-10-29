@@ -32,6 +32,8 @@ interface Sala {
   /** As últimas mensagens, com a sessão de quem escreveu (pra reconhecer as minhas). */
   historico: { mensagem: ChatMessage; sessao: string }[];
   ultimoIdMensagem: number;
+  /** Contador dos ids dos itens da fila de vídeo: nunca volta, mesmo se o player fechar e abrir de novo. */
+  ultimoIdItemFila: number;
 }
 
 const salas = new Map<string, Sala>();
@@ -46,6 +48,7 @@ function obterOuCriarSala(codigo: string): Sala {
       trancada: false,
       historico: [],
       ultimoIdMensagem: 0,
+      ultimoIdItemFila: 0,
     };
     salas.set(codigo, sala);
   }
@@ -158,6 +161,11 @@ export function obterFonteVideo(codigo: string): FonteVideo | null {
 
 export function definirFonteVideo(codigo: string, fonte: FonteVideo | null): void {
   obterOuCriarSala(codigo).fonteVideo = fonte;
+}
+
+/** O id do próximo item da fila de vídeo desta sala. */
+export function proximoIdItemFila(codigo: string): number {
+  return ++obterOuCriarSala(codigo).ultimoIdItemFila;
 }
 
 /** Numera a mensagem, guarda no histórico da sala (as últimas `MAX_HISTORICO`) e devolve ela pronta pra mandar. */

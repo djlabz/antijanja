@@ -9,3 +9,4 @@ Cada arquivo `.playwright.js` é o corpo de uma função `async (page) => { ... 
 pra colar no `browser_run_code_unsafe` do Playwright MCP (ou numa função de um
 script Playwright seu), com o app em `http://localhost:3000` (`npm run dev`).
 Cada um devolve um objeto com o que mediu e diz, no topo, o que deve dar.
+`fila-video` é o único que também precisa de internet (usa vídeos reais do YouTube).

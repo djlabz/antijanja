@@ -14,17 +14,20 @@
  */
 import type { Server } from "socket.io";
 import type {
+  AcaoFila,
   ComandoVideo,
   EventosCliente,
   EventosServidor,
   FonteVideo,
   IceServerConfig,
   ParticipantId,
+  RespostaFonte,
   SinalOrigem,
   SinalTipo,
 } from "../lib/socket-events";
 import { REACOES } from "../lib/socket-events";
-import { extrairYoutube, ID_YOUTUBE_VALIDO } from "../lib/youtube";
+import { extrairYoutube } from "../lib/youtube";
+import { ACOES_FILA, adicionarNaFila, aplicarAcaoNaFila, criarFonte } from "../lib/fila-video";
 import {
   definirFonteVideo,
   encontrarPorSessao,
@@ -37,6 +40,7 @@ import {
   marcarCompartilhando,
   nomeEmUso,
   obterFonteVideo,
+  proximoIdItemFila,
   registrarMensagem,
   sairDaSala,
   salaTrancada,
@@ -68,7 +72,6 @@ export function lerIceServersDoAmbiente(
 }
 
 type RespostaEntrada = Parameters<Parameters<EventosCliente["sala:entrar"]>[1]>[0];
-type RespostaFonte = Parameters<Parameters<EventosCliente["fonte:adicionar"]>[1]>[0];
 
 const MAX_CODIGO = 40;
 const MAX_NOME = 30;
@@ -126,15 +129,18 @@ function lerComando(valor: unknown): ComandoVideo | null {
       return segundos === null || typeof valor.tocando !== "boolean"
         ? null
         : { tipo, emSegundos: segundos, tocando: valor.tocando };
-    case "carregar":
-      return typeof valor.youtubeId === "string" &&
-        ID_YOUTUBE_VALIDO.test(valor.youtubeId) &&
-        typeof valor.ehPlaylist === "boolean"
-        ? { tipo, youtubeId: valor.youtubeId, ehPlaylist: valor.ehPlaylist }
-        : null;
     default:
       return null;
   }
+}
+
+/** `fonte:acao` só passa com uma ação conhecida e um id inteiro; o resto é ignorado. */
+function lerAcaoFila(valor: unknown): { tipo: AcaoFila; itemId: number } | null {
+  if (!ehObjeto(valor)) return null;
+  const { tipo, itemId } = valor;
+  if (!ACOES_FILA.includes(tipo as AcaoFila)) return null;
+  if (typeof itemId !== "number" || !Number.isSafeInteger(itemId)) return null;
+  return { tipo: tipo as AcaoFila, itemId };
 }
 
 /** Só quem adicionou controla o vídeo — a menos que "qualquer um" esteja ligado. */
@@ -237,6 +243,7 @@ export function registrarSinalizacao(
     const dados: DadosSocket = {};
     const podeMandarChat = criarLimitador(8, 5000);
     const podeReagir = criarLimitador(8, 1000);
+    const podeMexerNaFila = criarLimitador(20, 5000);
 
     /** Só vale se este socket de fato está numa sala (e ainda consta nela). */
     function salaAtual(): string | null {
@@ -468,21 +475,67 @@ export function registrarSinalizacao(
           responder({ ok: false, erro: "Entre numa sala primeiro." });
           return;
         }
+        if (!podeMexerNaFila()) {
+          responder({ ok: false, erro: "Calma, muitos vídeos de uma vez. Tente de novo em instantes." });
+          return;
+        }
         const link = ehObjeto(payload) && typeof payload.link === "string" ? payload.link : "";
         const extraido = link.length <= MAX_LINK ? extrairYoutube(link) : null;
         if (!extraido) {
           responder({ ok: false, erro: "Não reconheci esse link do YouTube." });
           return;
         }
-        const fonte: FonteVideo = {
+        const item = {
+          id: proximoIdItemFila(codigo),
           youtubeId: extraido.id,
           ehPlaylist: extraido.ehPlaylist,
-          adicionadoPor: socket.id,
-          qualquerUmControla: ehObjeto(payload) && payload.qualquerUmControla === true,
+          por: dados.nome ?? "Participante",
         };
-        definirFonteVideo(codigo, fonte);
-        responder({ ok: true });
-        io.to(codigo).emit("fonte:atualizada", fonte);
+
+        const existente = obterFonteVideo(codigo);
+        // Sem player: este vídeo abre um, e quem abriu decide quem controla.
+        if (!existente) {
+          const nova = criarFonte(
+            item,
+            socket.id,
+            ehObjeto(payload) && payload.qualquerUmControla === true
+          );
+          definirFonteVideo(codigo, nova);
+          responder({ ok: true });
+          io.to(codigo).emit("fonte:atualizada", nova);
+          return;
+        }
+
+        // Com player: entra no fim da fila, pela mesma regra de quem controla.
+        if (!podeControlar(existente, socket.id)) {
+          responder({ ok: false, erro: "Só quem controla o vídeo pode mexer na fila." });
+          return;
+        }
+        const comFila = adicionarNaFila(existente, item);
+        if (!comFila) {
+          responder({ ok: false, erro: "A fila está cheia. Tire algum vídeo ou espere tocar." });
+          return;
+        }
+        definirFonteVideo(codigo, comFila);
+        responder({ ok: true, naFila: comFila.proximos.length });
+        io.to(codigo).emit("fonte:atualizada", comFila);
+      })
+    );
+
+    socket.on(
+      "fonte:acao",
+      seguro((valor: unknown) => {
+        const codigo = salaAtual();
+        if (!codigo) return;
+        const fonte = obterFonteVideo(codigo);
+        // Mesma regra do controle: o servidor decide, nunca o cliente.
+        if (!fonte || !podeControlar(fonte, socket.id)) return;
+        const acao = lerAcaoFila(valor);
+        if (!acao || !podeMexerNaFila()) return;
+        const nova = aplicarAcaoNaFila(fonte, acao.tipo, acao.itemId);
+        if (!nova) return;
+        definirFonteVideo(codigo, nova);
+        io.to(codigo).emit("fonte:atualizada", nova);
       })
     );
 

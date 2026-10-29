@@ -44,6 +44,7 @@ import { ConfigTransmissaoPopover } from "./config-transmissao-popover";
 import { ControlesTransmissao } from "./controles-transmissao";
 import { BotoesAvisos } from "./botoes-avisos";
 import { AdicionarFonteDialog } from "./adicionar-fonte-dialog";
+import { FilaVideo } from "./fila-video";
 import { EscolherNomeSala } from "./escolher-nome-sala";
 import { ConectandoSala } from "./conectando-sala";
 
@@ -111,6 +112,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
     ultimoComandoVideo,
     adicionarFonteVideo,
     removerFonteVideo,
+    acaoNaFila,
     enviarComandoVideo,
     enviarMensagem,
     lerEstatisticasEntrada,
@@ -126,14 +128,17 @@ export function SalaClient({ codigo }: SalaClientProps) {
   // quantas mensagens o chat já mostrou — o que passa disso e não é minha
   // vira o contador de "não lidas" na aba. `vistas` só muda ao sair do chat,
   // então dá pra derivar tudo sem efeito.
-  const [aba, setAba] = useState<"participantes" | "chat">("chat");
+  type Aba = "participantes" | "chat" | "fila";
+  const [aba, setAba] = useState<Aba>("chat");
   const [vistas, setVistas] = useState(0);
-  const lidas = aba === "chat" ? totalMensagens : vistas;
+  // A aba "fila" só existe com um player na sala; sem ele, volta pro chat.
+  const abaAtiva = aba === "fila" && !fonteVideo ? "chat" : aba;
+  const lidas = abaAtiva === "chat" ? totalMensagens : vistas;
   const naoLidas = ultimasPendentes(mensagens, totalMensagens, lidas).filter(
     (m) => m.de !== euId && !m.sistema && !m.antiga
   ).length;
 
-  function trocarAba(nova: "participantes" | "chat") {
+  function trocarAba(nova: Aba) {
     if (nova !== "chat") setVistas(totalMensagens);
     setAba(nova);
   }
@@ -315,12 +320,13 @@ export function SalaClient({ codigo }: SalaClientProps) {
       id: "youtube",
       render: (d) => (
         <YoutubePlayer
-          key={fonteVideo.youtubeId}
-          youtubeId={fonteVideo.youtubeId}
-          ehPlaylist={fonteVideo.ehPlaylist}
+          item={fonteVideo.atual}
+          naFila={fonteVideo.proximos.length}
           souControlador={souControladorDoVideo}
+          souDono={fonteVideo.adicionadoPor === euId}
           ultimoComando={ultimoComandoVideo}
           onComando={enviarComandoVideo}
+          onAvancar={(itemId) => acaoNaFila("avancar", itemId)}
           onRemover={souControladorDoVideo ? removerFonteVideo : undefined}
           destaque={d}
         />
@@ -375,9 +381,17 @@ export function SalaClient({ codigo }: SalaClientProps) {
   const botaoAdicionarVideo = (
     <Button size="sm" variant="outline" className="gap-1.5">
       <YoutubeIcon className="size-3.5" />
-      <span className="max-sm:sr-only">Adicionar vídeo</span>
+      <span className="max-sm:sr-only">{fonteVideo ? "Adicionar à fila" : "Adicionar vídeo"}</span>
     </Button>
   );
+  const aguardando = fonteVideo?.proximos.length ?? 0;
+  const abas: [Aba, string, number][] = [
+    ["chat", "Chat", naoLidas],
+    ...(fonteVideo
+      ? [["fila", aguardando > 0 ? `Fila · ${aguardando}` : "Fila", 0] as [Aba, string, number]]
+      : []),
+    ["participantes", `Participantes · ${participantes.length}`, 0],
+  ];
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
@@ -410,8 +424,12 @@ export function SalaClient({ codigo }: SalaClientProps) {
             bitrateMbps={bitrateMbps}
           />
 
-          {!fonteVideo && (
-            <AdicionarFonteDialog trigger={botaoAdicionarVideo} aoAdicionar={adicionarFonteVideo} />
+          {(!fonteVideo || souControladorDoVideo) && (
+            <AdicionarFonteDialog
+              modo={fonteVideo ? "fila" : "iniciar"}
+              trigger={botaoAdicionarVideo}
+              aoAdicionar={adicionarFonteVideo}
+            />
           )}
 
           <ConfigTransmissaoPopover
@@ -646,20 +664,18 @@ export function SalaClient({ codigo }: SalaClientProps) {
         </main>
 
         <div role="group" aria-label="Painel" className="order-2 flex shrink-0 gap-1 rounded-full bg-white/[0.05] p-1 md:hidden">
-          {(
-            [
-              ["chat", "Chat", naoLidas],
-              ["participantes", `Participantes · ${participantes.length}`, 0],
-            ] as const
-          ).map(([id, rotulo, contagem]) => (
+          {abas.map(([id, rotulo, contagem]) => (
             <button
               key={id}
               type="button"
-              aria-pressed={aba === id}
+              aria-pressed={abaAtiva === id}
               onClick={() => trocarAba(id)}
               className={cn(
-                "flex min-h-11 flex-1 items-center justify-center gap-1.5 rounded-full px-3 py-1.5 font-heading text-xs tracking-wide uppercase transition-colors",
-                aba === id
+                "flex min-h-11 items-center justify-center gap-1.5 rounded-full px-2.5 py-1.5 font-heading text-xs tracking-wide whitespace-nowrap uppercase transition-colors",
+                // Com 2 abas, metade cada; com 3 (há um player), cada uma
+                // pelo tamanho do rótulo — "Participantes · 3" não cabe na terça parte.
+                abas.length > 2 ? "flex-auto" : "flex-1",
+                abaAtiva === id
                   ? "bg-white/10 text-foreground"
                   : "text-foreground/65 hover:text-foreground"
               )}
@@ -677,7 +693,7 @@ export function SalaClient({ codigo }: SalaClientProps) {
         <aside
           className={cn(
             "order-3 min-h-0 flex-1 overflow-y-auto rounded-3xl bg-white/[0.035] p-3 md:order-1 md:block md:flex-none md:overflow-visible md:p-4",
-            aba !== "participantes" && "hidden",
+            abaAtiva !== "participantes" && "hidden",
             "transition-opacity duration-300 md:overflow-hidden",
             cinema && "md:pointer-events-none md:opacity-0"
           )}
@@ -688,23 +704,55 @@ export function SalaClient({ codigo }: SalaClientProps) {
           <ListaParticipantes participantes={participantes} euId={euId} />
         </aside>
 
-        <aside
+        {/* Coluna da direita: a fila (só com player na sala) em cima, o chat
+            embaixo. No celular cada um é uma aba e só o da aba ativa aparece. */}
+        <div
           className={cn(
-            "order-3 min-h-0 flex-1 flex-col rounded-3xl bg-white/[0.035] p-3 md:order-3 md:flex md:flex-none md:p-4",
-            aba === "chat" ? "flex" : "hidden"
+            "order-3 flex min-h-0 flex-1 flex-col md:order-3 md:gap-4",
+            abaAtiva === "participantes" && "max-md:hidden"
           )}
         >
-          <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
-            Chat
-          </h2>
-          <Chat
-            mensagens={mensagens}
-            euId={euId}
-            onEnviar={enviarMensagem}
-            onReagir={enviarReacao}
-            pausado={status !== "conectado"}
-          />
-        </aside>
+          {fonteVideo && (
+            <aside
+              className={cn(
+                "min-h-0 flex-col overflow-y-auto rounded-3xl bg-white/[0.035] p-3 md:flex md:max-h-[45%] md:shrink-0 md:p-4",
+                abaAtiva === "fila" ? "flex flex-1" : "hidden"
+              )}
+            >
+              <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
+                Fila{aguardando > 0 && ` · ${aguardando}`}
+              </h2>
+              <FilaVideo
+                fonte={fonteVideo}
+                podeControlar={souControladorDoVideo}
+                nomeDoDono={
+                  participantes.find((p) => p.id === fonteVideo.adicionadoPor)?.nome ??
+                  "quem abriu o player"
+                }
+                aoAcao={acaoNaFila}
+                aoAdicionar={adicionarFonteVideo}
+              />
+            </aside>
+          )}
+
+          <aside
+            className={cn(
+              "min-h-0 flex-1 flex-col rounded-3xl bg-white/[0.035] p-3 md:flex md:p-4",
+              abaAtiva === "chat" ? "flex" : "hidden"
+            )}
+          >
+            <h2 className="mb-3 hidden px-1 font-heading text-xs tracking-wide text-foreground/75 uppercase md:block">
+              Chat
+            </h2>
+            <Chat
+              mensagens={mensagens}
+              euId={euId}
+              onEnviar={enviarMensagem}
+              onReagir={enviarReacao}
+              pausado={status !== "conectado"}
+            />
+          </aside>
+        </div>
       </div>
     </div>
   );

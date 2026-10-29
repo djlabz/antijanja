@@ -314,3 +314,9 @@
 - **Aviso dado ao usuário**: quem divide a internet (mesma casa/rede) conta como uma pessoa; VPN/outro Wi-Fi contornam. Depois do deploy, conferir se a variável chegou ao Render (se o Blueprint não sincronizar, criar no painel).
 - Os 2 commits anteriores (`997c514`, `380253e`, ADR 035) e este seguem sem push.
 
+
+## 2026-10-29 - Fila de vídeos no player do YouTube (ADR 037)
+- Pedido do usuário: poder colocar vários links no player do YouTube e passar pro próximo (ao acabar ou antes), organizado e bonito; o desenho ficou por minha conta.
+- Feito: `FonteVideo` = `{ atual, proximos, ... }` com regras puras em `src/lib/fila-video.ts`; `fonte:acao` (avançar/tocar agora/priorizar/remover) e `fonte:adicionar` que agora enfileira; player sem remontar (`loadVideoById`), avanço no fim do vídeo e pulo de vídeo com erro; painel "Fila" (acima do chat no computador, 3ª aba no celular) com título/miniatura do oEmbed; diálogo com modo `fila` que fica aberto. 145 testes (38 novos).
+- Defeito antigo achado e corrigido no caminho: no modo "qualquer um controla" os controladores ignoravam os comandos uns dos outros (e todos mandavam heartbeat). Corrigido com dois ajustes de eco achados em teste com dois navegadores (ver ADR 037).
+- Verificado em dois navegadores com YouTube real (`e2e/fila-video.playwright.js`) e visualmente no computador e em 375px. Pendente: push (nada foi enviado), celular de verdade, playlist inteira, 3+ pessoas, tolerância na volta do dono.

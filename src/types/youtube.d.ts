@@ -8,9 +8,15 @@ declare namespace YT {
     data: number;
   }
 
+  interface OnErrorEvent {
+    /** 2 = parâmetro inválido, 5 = erro do player HTML5, 100 = não existe/privado, 101 e 150 = não pode ser embutido. */
+    data: number;
+  }
+
   interface PlayerEvents {
     onReady?: () => void;
     onStateChange?: (event: OnStateChangeEvent) => void;
+    onError?: (event: OnErrorEvent) => void;
   }
 
   interface PlayerOptions {
@@ -28,6 +34,9 @@ declare namespace YT {
     getPlayerState(): number;
     loadVideoById(videoId: string): void;
     loadPlaylist(opcoes: { list: string }): void;
+    /** Ids dos vídeos da playlist carregada; vazio/nulo enquanto ela ainda não carregou. */
+    getPlaylist(): string[] | null | undefined;
+    getPlaylistIndex(): number;
     destroy(): void;
   }
 

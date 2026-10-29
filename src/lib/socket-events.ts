@@ -81,17 +81,43 @@ export interface SinalPayload {
 }
 
 /**
- * Um vídeo/playlist do YouTube compartilhado com a sala inteira — não é
- * compartilhamento de tela, é um player sincronizado (ver docs/decisions.md,
- * ADR 015). Só uma fonte ativa por sala de cada vez, por simplicidade.
+ * Um vídeo (ou playlist inteira) na fila do player. `id` é único na sala e
+ * nunca se repete: é ele que os comandos citam e que serve de `key` na lista,
+ * já que o mesmo link pode entrar duas vezes.
  */
-export interface FonteVideo {
+export interface ItemFila {
+  id: number;
   youtubeId: string;
   ehPlaylist: boolean;
+  /** Nome de quem pôs na fila (só pra mostrar). */
+  por: string;
+}
+
+/**
+ * O player do YouTube compartilhado com a sala inteira — não é compartilhamento
+ * de tela, é um player sincronizado (ver docs/decisions.md, ADR 015) com uma
+ * fila de vídeos (ADR 037). Só uma fonte ativa por sala de cada vez.
+ */
+export interface FonteVideo {
+  /** O que está tocando agora. */
+  atual: ItemFila;
+  /** O que vem depois, na ordem em que vai tocar. O que já tocou sai da fila. */
+  proximos: ItemFila[];
+  /** Quem abriu o player. É quem manda o "heartbeat" de sincronia. */
   adicionadoPor: ParticipantId;
-  /** Se falso, só quem adicionou pode dar play/pause/trocar o vídeo. */
+  /** Se falso, só quem adicionou pode dar play/pause, mexer na fila ou fechar o player. */
   qualquerUmControla: boolean;
 }
+
+/** O que dá pra fazer com um item da fila (sempre citando o `id` dele). */
+export type AcaoFila =
+  /** Passa pro próximo; só vale se o item citado ainda é o que está tocando. */
+  | "avancar"
+  /** Toca este agora (o que estava tocando sai). */
+  | "tocar"
+  /** Põe este como o próximo da fila. */
+  | "priorizar"
+  | "remover";
 
 /**
  * Comandos de controle do player, retransmitidos pelo servidor sem
@@ -102,8 +128,10 @@ export interface FonteVideo {
 export type ComandoVideo =
   | { tipo: "tocar"; emSegundos: number }
   | { tipo: "pausar"; emSegundos: number }
-  | { tipo: "sincronizar"; emSegundos: number; tocando: boolean }
-  | { tipo: "carregar"; youtubeId: string; ehPlaylist: boolean };
+  | { tipo: "sincronizar"; emSegundos: number; tocando: boolean };
+
+/** Resposta de `fonte:adicionar`: `naFila` é a posição entre os próximos (1 = o próximo), ausente se começou a tocar. */
+export type RespostaFonte = { ok: true; naFila?: number } | { ok: false; erro: string };
 
 /** Eventos emitidos pelo cliente para o servidor. */
 export interface EventosCliente {
@@ -138,11 +166,15 @@ export interface EventosCliente {
   "compartilhar:iniciar": () => void;
   "compartilhar:parar": () => void;
   "webrtc:sinal": (payload: SinalPayload & { para: ParticipantId }) => void;
+  /** Sem player na sala: abre com esse vídeo. Com player: põe no fim da fila (só quem controla). */
   "fonte:adicionar": (
     payload: { link: string; qualquerUmControla: boolean },
-    ack: (resposta: { ok: true } | { ok: false; erro: string }) => void
+    ack: (resposta: RespostaFonte) => void
   ) => void;
+  /** Fecha o player (e descarta a fila). */
   "fonte:remover": () => void;
+  /** Mexe na fila — só quem controla o vídeo. */
+  "fonte:acao": (payload: { tipo: AcaoFila; itemId: number }) => void;
   "fonte:comando": (comando: ComandoVideo) => void;
 }
 

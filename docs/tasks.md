@@ -145,3 +145,8 @@
 - [ ] Twitch/Kick como fonte de vídeo (só YouTube por enquanto — ADR 015).
 - [ ] Indicador de tela cheia / fullscreen pro player do YouTube (o
       `VideoTile` de compartilhamento de tela já tem, o `YoutubePlayer` ainda não).
+- [ ] Fila do player: dar uma tolerância de alguns segundos pra volta do dono
+      (recarregar a página hoje fecha o player e a fila no modo "só eu controlo" —
+      ADR 037).
+- [ ] Fila do player: testar uma playlist inteira terminando e passando pro
+      próximo item, e a sincronia com 3+ pessoas.
