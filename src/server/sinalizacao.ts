@@ -29,6 +29,7 @@ import { REACOES } from "../lib/socket-events";
 import { extrairYoutube } from "../lib/youtube";
 import { ACOES_FILA, adicionarNaFila, aplicarAcaoNaFila, criarFonte } from "../lib/fila-video";
 import {
+  citacaoDe,
   definirFonteVideo,
   encontrarPorSessao,
   entrarNaSala,
@@ -396,6 +397,12 @@ export function registrarSinalizacao(
         if (typeof payload.texto !== "string") return;
         const texto = payload.texto.trim().slice(0, MAX_TEXTO_CHAT);
         if (!texto || !podeMandarChat()) return;
+        // `respondeA` é só o id da mensagem citada; a citação sai do histórico
+        // do servidor. Id inválido ou que já saiu do histórico: vira mensagem normal.
+        const citada =
+          typeof payload.respondeA === "number" && Number.isSafeInteger(payload.respondeA)
+            ? citacaoDe(codigo, payload.respondeA)
+            : undefined;
         io.to(codigo).emit(
           "chat:mensagem",
           registrarMensagem(codigo, dados.sessao ?? "", {
@@ -403,6 +410,7 @@ export function registrarSinalizacao(
             nome: dados.nome,
             texto,
             em: Date.now(),
+            ...(citada && { respondeA: citada }),
           })
         );
       })

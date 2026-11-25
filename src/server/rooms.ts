@@ -6,10 +6,19 @@
  * Import relativo (não `@/...`): este arquivo roda via `tsx` a partir de
  * `server.ts`, fora do bundler do Next.
  */
-import type { ChatMessage, FonteVideo, Participant, ParticipantId } from "../lib/socket-events";
+import type {
+  ChatMessage,
+  CitacaoChat,
+  FonteVideo,
+  Participant,
+  ParticipantId,
+} from "../lib/socket-events";
 
 /** Quantas mensagens do chat a sala guarda pra quem entra depois (só em memória). */
 export const MAX_HISTORICO = 50;
+
+/** Tamanho do trecho da mensagem que vai na citação de uma resposta. */
+export const MAX_TRECHO_CITACAO = 120;
 
 /**
  * `sessao` identifica a PESSOA (uma aba do navegador), não a conexão: o
@@ -179,6 +188,21 @@ export function registrarMensagem(
   sala.historico.push({ mensagem, sessao });
   if (sala.historico.length > MAX_HISTORICO) sala.historico.shift();
   return mensagem;
+}
+
+/**
+ * A citação de uma mensagem que ainda está no histórico da sala (as últimas
+ * `MAX_HISTORICO`), ou `undefined` se o id não existe ou já saiu dele — aí a
+ * resposta segue sem citação em vez de ser recusada. O trecho vem do que o
+ * servidor guardou, nunca do que o cliente disse.
+ */
+export function citacaoDe(codigo: string, id: number): CitacaoChat | undefined {
+  const original = salas.get(codigo)?.historico.find((h) => h.mensagem.id === id)?.mensagem;
+  if (!original) return undefined;
+  const plano = original.texto.replace(/\s+/g, " ");
+  const texto =
+    plano.length > MAX_TRECHO_CITACAO ? `${plano.slice(0, MAX_TRECHO_CITACAO).trimEnd()}…` : plano;
+  return { id: original.id, nome: original.nome, texto };
 }
 
 /**

@@ -320,3 +320,9 @@
 - Feito: `FonteVideo` = `{ atual, proximos, ... }` com regras puras em `src/lib/fila-video.ts`; `fonte:acao` (avançar/tocar agora/priorizar/remover) e `fonte:adicionar` que agora enfileira; player sem remontar (`loadVideoById`), avanço no fim do vídeo e pulo de vídeo com erro; painel "Fila" (acima do chat no computador, 3ª aba no celular) com título/miniatura do oEmbed; diálogo com modo `fila` que fica aberto. 145 testes (38 novos).
 - Defeito antigo achado e corrigido no caminho: no modo "qualquer um controla" os controladores ignoravam os comandos uns dos outros (e todos mandavam heartbeat). Corrigido com dois ajustes de eco achados em teste com dois navegadores (ver ADR 037).
 - Verificado em dois navegadores com YouTube real (`e2e/fila-video.playwright.js`) e visualmente no computador e em 375px. Pendente: push (nada foi enviado), celular de verdade, playlist inteira, 3+ pessoas, tolerância na volta do dono.
+
+
+## 2026-11-24 - Responder mensagem no chat (ADR 038)
+- Pedido do usuário: responder uma mensagem como no WhatsApp (botão com setinha, sem arrastar) pra saber a qual mensagem uma resposta se refere; "funcional pro celular também".
+- Feito: `ChatMessage.respondeA` (`CitacaoChat`), `chat:enviar` aceita `respondeA: id` e o servidor monta a citação a partir do histórico (`citacaoDe` em `rooms.ts`); no `chat.tsx`: botão ↩ em cada balão, barra "Respondendo a…" (X/Esc cancelam), citação clicável dentro do balão que rola até a original e a realça. 151 testes (6 novos), tsc e lint limpos.
+- Verificado em dois navegadores (`e2e/responder-mensagem.playwright.js`) e visualmente no computador e em 375px com toque. Pendente: celular de verdade, leitor de tela; commit feito localmente, push só se o usuário pedir.

@@ -413,9 +413,9 @@ export function useSala(codigo: string, nome: string, pronto: boolean) {
     []
   );
 
-  const enviarMensagem = useCallback((texto: string) => {
+  const enviarMensagem = useCallback((texto: string, respondeA?: number) => {
     if (!texto.trim() || !naSalaRef.current) return;
-    socketRef.current?.emit("chat:enviar", { texto });
+    socketRef.current?.emit("chat:enviar", { texto, respondeA });
   }, []);
 
   const iniciarCompartilhamento = useCallback(async () => {

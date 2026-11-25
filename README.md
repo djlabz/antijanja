@@ -120,7 +120,8 @@ Dentro da sala (no PC): `F` tela cheia · `M` mudo · `C` modo cinema · `P`
 janela flutuante (PiP, também no botão do cabeçalho; abre sozinha ao trocar
 de aba no Chrome/Edge) · `/` chat. Tem reações rápidas que flutuam sobre o
 vídeo, destaque de tela quando há mais de uma transmissão e aviso no título
-da aba quando chega mensagem. No celular o vídeo fica fixo no topo com abas
+da aba quando chega mensagem, e dá pra responder uma mensagem específica (botão ↩ no balão; a
+resposta leva a citação e tocar nela leva até a original). No celular o vídeo fica fixo no topo com abas
 Chat/Participantes. Quem transmite vê quem está recebendo (e se alguém
 está travando); dá pra trancar a sala pelo diálogo de convite e ligar
 notificações do sistema (sino) pra ser avisado com outra janela por cima.

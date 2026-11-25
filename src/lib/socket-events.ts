@@ -26,6 +26,17 @@ export interface IceServerConfig {
   credential?: string;
 }
 
+/**
+ * A mensagem que outra está respondendo (ADR 038). O servidor monta isto a
+ * partir do próprio histórico — o cliente só diz o `id` — então ninguém
+ * consegue forjar "Fulana disse X". `texto` é um trecho, não a mensagem inteira.
+ */
+export interface CitacaoChat {
+  id: number;
+  nome: string;
+  texto: string;
+}
+
 export interface ChatMessage {
   /**
    * Identifica a mensagem: o servidor numera as da sala (1, 2, 3…) e o cliente
@@ -37,6 +48,8 @@ export interface ChatMessage {
   nome: string;
   texto: string;
   em: number;
+  /** Quando esta mensagem é uma resposta a outra da sala. */
+  respondeA?: CitacaoChat;
   /** Aviso local ("Fulano entrou") gerado pelo próprio cliente — nunca vem do servidor. */
   sistema?: boolean;
   /** Veio do histórico da sala (dita antes de eu entrar): não conta como não lida nem apita. */
@@ -161,7 +174,7 @@ export interface EventosCliente {
   ) => void;
   /** Tranca/destranca a sala — qualquer pessoa dentro pode (grupo pequeno de amigos). */
   "sala:trancar": (trancar: boolean) => void;
-  "chat:enviar": (payload: { texto: string }) => void;
+  "chat:enviar": (payload: { texto: string; respondeA?: number }) => void;
   "reacao:enviar": (emoji: string) => void;
   "compartilhar:iniciar": () => void;
   "compartilhar:parar": () => void;

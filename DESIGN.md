@@ -338,6 +338,14 @@ agora). Mesma lógica de funcionamento do sistema anterior
   arredondado (`rounded-br-md`/`rounded-bl-md`), o "rabinho" do balão.
 - Nome (na cor do participante) e horário em 11px acima; campo de mensagem
   em pílula com botão de enviar circular âmbar.
+- **Responder (ADR 038):** botão ↩ de ícone puro ao lado do balão (à esquerda
+  nos meus, à direita nos dos outros) — no computador só no hover/foco, no
+  toque sempre visível a 60% e com área de 44px por pseudo-elemento. A
+  citação vive dentro do balão: bloco `black/20`, `rounded-lg`, filete de 2px
+  na cor do autor, nome em 12px ("Você" se for minha) e até 2 linhas do trecho;
+  é botão que rola até a original e a realça uns 1,4s (clareando o balão, sem
+  âmbar extra). Acima do campo, a barra "Respondendo a…" é uma pílula
+  `white/5%` com o mesmo filete e um X.
 
 ### Abas do celular
 Controle segmentado em pílula (`white/5%`) com a aba ativa em `white/10%`;

@@ -1,7 +1,7 @@
 "use client";
 
-import { memo, useEffect, useRef, useState } from "react";
-import { SendHorizontal, SmilePlus } from "lucide-react";
+import { memo, useEffect, useMemo, useRef, useState } from "react";
+import { Reply, SendHorizontal, SmilePlus, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -12,7 +12,8 @@ import { REACOES, type ChatMessage, type ParticipantId } from "@/lib/socket-even
 interface ChatProps {
   mensagens: ChatMessage[];
   euId: ParticipantId | null;
-  onEnviar: (texto: string) => void;
+  /** `respondeA` é o id da mensagem que esta responde (o servidor monta a citação). */
+  onEnviar: (texto: string, respondeA?: number) => void;
   /** Manda uma reação que flutua sobre o vídeo (não entra no chat). */
   onReagir?: (emoji: string) => void;
   /**
@@ -47,6 +48,48 @@ function TextoComLinks({ texto }: { texto: string }) {
   );
 }
 
+/** A mensagem citada dentro do balão de uma resposta; vira botão quando dá pra ir até a original. */
+function Citacao({
+  autor,
+  texto,
+  cor,
+  aoAbrir,
+}: {
+  autor: string;
+  texto: string;
+  cor?: string;
+  aoAbrir?: () => void;
+}) {
+  const classe = "mb-1 block w-full rounded-lg border-l-2 bg-black/20 px-2 py-1 text-left";
+  const estilo = { borderLeftColor: cor ?? "var(--muted-foreground)" };
+  const corpo = (
+    <>
+      <span className="block text-xs font-semibold" style={cor ? { color: cor } : undefined}>
+        {autor}
+      </span>
+      <span className="line-clamp-2 text-xs text-foreground/70">{texto}</span>
+    </>
+  );
+  if (!aoAbrir) {
+    return (
+      <span className={classe} style={estilo}>
+        {corpo}
+      </span>
+    );
+  }
+  return (
+    <button
+      type="button"
+      onClick={aoAbrir}
+      aria-label={`Ir para a mensagem de ${autor}`}
+      className={cn(classe, "hover:bg-black/30 focus-visible:outline-2 focus-visible:outline-ring")}
+      style={estilo}
+    >
+      {corpo}
+    </button>
+  );
+}
+
 function formatarHorario(em: number) {
   return new Date(em).toLocaleTimeString("pt-BR", {
     hour: "2-digit",
@@ -54,16 +97,56 @@ function formatarHorario(em: number) {
   });
 }
 
+// Alvo de toque de 44px sem ocupar 44px no balão: o botão é pequeno e o
+// pseudo-elemento estende a área clicável (só onde não há hover).
+const BOTAO_PEQUENO =
+  "relative flex size-7 shrink-0 items-center justify-center rounded-full text-muted-foreground transition-opacity hover:bg-white/10 hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring [@media(hover:none)]:size-8 [@media(hover:none)]:after:absolute [@media(hover:none)]:after:-inset-1.5";
+
+/** Duração do realce da mensagem original depois de tocar na citação. */
+const REALCE_MS = 1400;
+
 // `memo`: a sala re-renderiza a cada reação que chega (o estado das reações
 // mora no mesmo hook); sem isso o histórico inteiro do chat era redesenhado
 // junto, e com reações em enxurrada pesava.
 export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir, pausado }: ChatProps) {
   const [texto, setTexto] = useState("");
   const [reagindo, setReagindo] = useState(false);
+  // A mensagem que o próximo envio vai responder (guardada inteira: continua
+  // valendo mesmo se ela sair da lista).
+  const [respondendo, setRespondendo] = useState<ChatMessage | null>(null);
+  const [realcada, setRealcada] = useState<number | null>(null);
   const formRef = useRef<HTMLFormElement>(null);
+  const campoRef = useRef<HTMLInputElement>(null);
   const listaRef = useRef<HTMLDivElement>(null);
   const colarNoFimRef = useRef(true);
   const alturaRef = useRef(0);
+  const timerRealceRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  // Pra achar a mensagem original de uma citação (cor, "Você", pular até ela).
+  const porId = useMemo(() => new Map(mensagens.map((m) => [m.id, m])), [mensagens]);
+
+  useEffect(() => () => clearTimeout(timerRealceRef.current), []);
+
+  function responder(m: ChatMessage) {
+    setRespondendo(m);
+    campoRef.current?.focus();
+  }
+
+  // Rola só a lista até a mensagem citada e a realça um instante.
+  function irPara(id: number) {
+    const lista = listaRef.current;
+    const alvo = lista?.querySelector<HTMLElement>(`[data-mensagem-id="${id}"]`);
+    if (!lista || !alvo) return;
+    const distancia =
+      alvo.getBoundingClientRect().top -
+      lista.getBoundingClientRect().top -
+      (lista.clientHeight - alvo.clientHeight) / 2;
+    const reduzido = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    lista.scrollTo({ top: lista.scrollTop + distancia, behavior: reduzido ? "auto" : "smooth" });
+    setRealcada(id);
+    clearTimeout(timerRealceRef.current);
+    timerRealceRef.current = setTimeout(() => setRealcada(null), REALCE_MS);
+  }
 
   function aoRolar() {
     const lista = listaRef.current;
@@ -124,8 +207,9 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir, pa
   function enviar() {
     const limpo = texto.trim();
     if (!limpo || pausado) return;
-    onEnviar(limpo);
+    onEnviar(limpo, respondendo?.id);
     setTexto("");
+    setRespondendo(null);
     colarNoFimRef.current = true;
   }
 
@@ -160,11 +244,15 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir, pa
               );
             }
             const minha = m.de === euId;
+            const citada = m.respondeA;
+            // A original, se ainda está na lista: dá a cor, o "Você" e o destino do toque.
+            const original = citada ? porId.get(citada.id) : undefined;
+            const autorDaCitacao = original && original.de === euId ? "Você" : citada?.nome;
             return (
               <div
                 key={m.id}
                 className={cn(
-                  "flex animate-in flex-col gap-0.5 fade-in-0 slide-in-from-bottom-1 duration-200",
+                  "group/msg flex animate-in flex-col gap-0.5 fade-in-0 slide-in-from-bottom-1 duration-200",
                   minha ? "items-end" : "items-start"
                 )}
               >
@@ -178,21 +266,81 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir, pa
                     {formatarHorario(m.em)}
                   </time>
                 </span>
-                <p
-                  className={cn(
-                    "max-w-[85%] rounded-2xl px-3 py-1.5 text-sm leading-snug break-words",
-                    minha
-                      ? "rounded-br-md bg-primary/15 text-foreground"
-                      : "rounded-bl-md bg-white/[0.06] text-foreground/90"
-                  )}
-                >
-                  <TextoComLinks texto={m.texto} />
-                </p>
+                {/* O botão de responder fica do lado de dentro do corredor: à
+                    esquerda do balão quando é meu, à direita quando é de outro. */}
+                <div className={cn("flex max-w-[92%] items-center gap-1", minha && "flex-row-reverse")}>
+                  <div
+                    data-mensagem-id={m.id}
+                    className={cn(
+                      "min-w-0 rounded-2xl px-3 py-1.5 text-sm leading-snug break-words transition-colors duration-500",
+                      minha
+                        ? "rounded-br-md bg-primary/15 text-foreground"
+                        : "rounded-bl-md bg-white/[0.06] text-foreground/90",
+                      realcada === m.id && (minha ? "bg-primary/35" : "bg-white/[0.18]")
+                    )}
+                  >
+                    {citada && (
+                      <Citacao
+                        autor={autorDaCitacao ?? citada.nome}
+                        texto={citada.texto}
+                        cor={original ? corDoParticipante(original.de) : undefined}
+                        // Sem a original na lista (já rolou pra fora), não há pra onde ir.
+                        aoAbrir={original ? () => irPara(citada.id) : undefined}
+                      />
+                    )}
+                    <p>
+                      <TextoComLinks texto={m.texto} />
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => responder(m)}
+                    // Mantém o foco onde está (teclado do celular aberto, campo ativo).
+                    onPointerDown={(e) => e.preventDefault()}
+                    aria-label={`Responder a ${minha ? "sua mensagem" : m.nome}`}
+                    title="Responder"
+                    className={cn(
+                      BOTAO_PEQUENO,
+                      "opacity-0 group-hover/msg:opacity-100 [@media(hover:none)]:opacity-60"
+                    )}
+                  >
+                    <Reply className="size-4" />
+                  </button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
+      {respondendo && (
+        <div
+          role="group"
+          aria-label="Respondendo a uma mensagem"
+          className="flex shrink-0 animate-in items-center gap-2 rounded-2xl bg-white/[0.05] py-1.5 pr-1.5 pl-3 fade-in-0 slide-in-from-bottom-1 duration-150"
+        >
+          <div
+            className="min-w-0 flex-1 border-l-2 pl-2"
+            style={{ borderLeftColor: corDoParticipante(respondendo.de) }}
+          >
+            <span className="block truncate text-xs font-semibold" style={{ color: corDoParticipante(respondendo.de) }}>
+              Respondendo a {respondendo.de === euId ? "você" : respondendo.nome}
+            </span>
+            <span className="block truncate text-xs text-foreground/70">{respondendo.texto}</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => {
+              setRespondendo(null);
+              campoRef.current?.focus();
+            }}
+            onPointerDown={(e) => e.preventDefault()}
+            aria-label="Cancelar resposta"
+            className={BOTAO_PEQUENO}
+          >
+            <X className="size-4" />
+          </button>
+        </div>
+      )}
       <form
         ref={formRef}
         className="relative flex shrink-0 items-center gap-2"
@@ -239,8 +387,12 @@ export const Chat = memo(function Chat({ mensagens, euId, onEnviar, onReagir, pa
           </>
         )}
         <Input
+          ref={campoRef}
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape" && respondendo) setRespondendo(null);
+          }}
           placeholder={pausado ? "Conectando…" : "Mensagem"}
           aria-label="Escreva uma mensagem"
           // `readOnly` (e não `disabled`) pra o campo não perder o foco na

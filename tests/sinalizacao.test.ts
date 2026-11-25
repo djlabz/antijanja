@@ -20,7 +20,7 @@ import {
   normalizarIp,
   registrarSinalizacao,
 } from "../src/server/sinalizacao";
-import { MAX_HISTORICO, registrarMensagem, historicoPara, entrarNaSala, sairDaSala } from "../src/server/rooms";
+import { MAX_HISTORICO, MAX_TRECHO_CITACAO, registrarMensagem, historicoPara, entrarNaSala, sairDaSala } from "../src/server/rooms";
 
 type Cliente = Socket<EventosServidor, EventosCliente>;
 type RespostaEntrada = Parameters<Parameters<EventosCliente["sala:entrar"]>[1]>[0];
@@ -102,6 +102,7 @@ describe("payload malformado", () => {
     cru.emit("sala:entrar", { codigo: "x".repeat(500), nome: "a", sessao: "s" }, () => {});
     cru.emit("chat:enviar", undefined);
     cru.emit("chat:enviar", { texto: 5 });
+    cru.emit("chat:enviar", { texto: "oi", respondeA: { a: 1 } });
     cru.emit("webrtc:sinal", "oi");
     cru.emit("fonte:adicionar", 7);
     cru.emit("fonte:comando", { tipo: "tocar", emSegundos: { a: 1 } });
@@ -660,6 +661,106 @@ describe("fila do vídeo", () => {
     assert.equal(await removida, null);
     const entrou = await entrar(await conectar(), "teste-sem-sala", "X");
     assert.ok(entrou.ok);
+  });
+});
+
+describe("responder mensagem", () => {
+  type Msg = { id: number; nome: string; texto: string; respondeA?: { id: number; nome: string; texto: string } };
+
+  /**
+   * Manda o payload (cru, pra poder mandar lixo) e devolve a mensagem que a sala
+   * recebeu com ESSE texto — a anterior ainda pode estar chegando pra quem não é
+   * quem falou, e o `once` simples pegaria ela.
+   */
+  function falar(cliente: Cliente, payload: { texto: string; respondeA?: unknown }): Promise<Msg> {
+    return new Promise((ok, erro) => {
+      const t = setTimeout(() => erro(new Error(`timeout esperando "${payload.texto.slice(0, 20)}"`)), 1500);
+      const ouvir = (m: Msg) => {
+        if (m.texto !== payload.texto.trim()) return;
+        clearTimeout(t);
+        (cliente as Socket).off("chat:mensagem", ouvir);
+        ok(m);
+      };
+      (cliente as Socket).on("chat:mensagem", ouvir);
+      (cliente as Socket).emit("chat:enviar", payload);
+    });
+  }
+
+  async function dupla() {
+    const codigo = sala();
+    const ana = await conectar();
+    const beto = await conectar();
+    await entrar(ana, codigo, "Ana");
+    await entrar(beto, codigo, "Beto");
+    return { codigo, ana, beto };
+  }
+
+  it("a resposta chega pra todos com a citação montada pelo servidor", async () => {
+    const { ana, beto } = await dupla();
+    const original = await falar(ana, { texto: "vamos ver o filme hoje?" });
+    const resposta = await falar(beto, { texto: "bora!", respondeA: original.id });
+    assert.deepEqual(resposta.respondeA, {
+      id: original.id,
+      nome: "Ana",
+      texto: "vamos ver o filme hoje?",
+    });
+    assert.equal(original.respondeA, undefined);
+  });
+
+  it("o cliente não consegue forjar a citação nem citar o que não existe", async () => {
+    const { ana, beto } = await dupla();
+    const original = await falar(ana, { texto: "oi" });
+    const forjada = await falar(beto, {
+      texto: "a",
+      respondeA: { id: original.id, nome: "Ana", texto: "eu te odeio" },
+    });
+    assert.equal(forjada.respondeA, undefined);
+    assert.equal((await falar(beto, { texto: "b", respondeA: 99999 })).respondeA, undefined);
+    assert.equal((await falar(beto, { texto: "c", respondeA: `${original.id}` })).respondeA, undefined);
+    assert.equal((await falar(beto, { texto: "d", respondeA: -1.5 })).respondeA, undefined);
+  });
+
+  it("a citação leva só um trecho da original, numa linha só", async () => {
+    const { ana, beto } = await dupla();
+    const longa = `primeira linha\n\n${"muito ".repeat(60)}`.trim();
+    const original = await falar(ana, { texto: longa });
+    const resposta = await falar(beto, { texto: "tl;dr", respondeA: original.id });
+    const trecho = resposta.respondeA?.texto ?? "";
+    assert.ok(trecho.startsWith("primeira linha muito"), trecho);
+    assert.ok(trecho.endsWith("…"));
+    assert.ok(!trecho.includes("\n"));
+    assert.ok(trecho.length <= MAX_TRECHO_CITACAO + 1);
+  });
+
+  it("responder uma resposta cita só o texto dela, sem aninhar", async () => {
+    const { ana, beto } = await dupla();
+    const primeira = await falar(ana, { texto: "um" });
+    const segunda = await falar(beto, { texto: "dois", respondeA: primeira.id });
+    const terceira = await falar(ana, { texto: "três", respondeA: segunda.id });
+    assert.deepEqual(terceira.respondeA, { id: segunda.id, nome: "Beto", texto: "dois" });
+  });
+
+  it("a citação fica no histórico de quem entra depois", async () => {
+    const { codigo, ana, beto } = await dupla();
+    const original = await falar(ana, { texto: "pergunta" });
+    await falar(beto, { texto: "resposta", respondeA: original.id });
+
+    const entrou = await entrar(await conectar(), codigo, "Caio");
+    assert.ok(entrou.ok);
+    const mensagens = (entrou as { mensagens: Msg[] }).mensagens;
+    assert.equal(mensagens.find((m) => m.texto === "resposta")?.respondeA?.id, original.id);
+  });
+
+  it("citar o que já saiu do histórico manda a resposta sem citação, não a recusa", async () => {
+    const codigo = sala();
+    const ana = await conectar();
+    await entrar(ana, codigo, "Ana");
+    const primeira = await falar(ana, { texto: "lá no começo" });
+    // Empurra a primeira pra fora do histórico (sem passar pelo limite de spam do socket).
+    for (let i = 0; i < MAX_HISTORICO; i++) registrarMensagem(codigo, "", { de: "x", nome: "X", texto: `m${i}`, em: 0 });
+    const resposta = await falar(ana, { texto: "ainda penso nisso", respondeA: primeira.id });
+    assert.equal(resposta.texto, "ainda penso nisso");
+    assert.equal(resposta.respondeA, undefined);
   });
 });
 
